@@ -9,7 +9,7 @@ struct PRListView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Label("\(title) (\(pullRequests.count))", systemImage: systemImage)
-                .font(.headline)
+                .font(.system(size: 15, weight: .semibold))
                 .padding(10)
 
             Divider()
@@ -49,7 +49,7 @@ struct PRRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(pullRequest.title)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 14, weight: .semibold))
                         .lineLimit(1)
                     checkIcon
                     ForEach(pullRequest.labels.prefix(3), id: \.self) { label in
@@ -63,7 +63,7 @@ struct PRRow: View {
                 }
                 if !pullRequest.headBranch.isEmpty {
                     Text(pullRequest.headBranch)
-                        .font(.caption.monospaced())
+                        .font(.system(size: 12, design: .monospaced))
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .padding(.horizontal, 5)
@@ -74,7 +74,7 @@ struct PRRow: View {
                         .padding(.leading, -5)
                 }
                 Text(caption)
-                    .font(.caption)
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -94,7 +94,7 @@ struct PRRow: View {
                     Image(systemName: "bubble.right")
                     Text("\(pullRequest.commentCount)")
                 }
-                .font(.caption)
+                .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .padding(.top, 2)
             }
@@ -250,7 +250,7 @@ struct LabelPill: View {
 
     var body: some View {
         Text(label.name)
-            .font(.caption2.weight(.semibold))
+            .font(.system(size: 11, weight: .semibold))
             .lineLimit(1)
             .fixedSize()
             .padding(.horizontal, 7)
