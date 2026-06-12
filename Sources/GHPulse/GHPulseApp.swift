@@ -31,6 +31,7 @@ struct MenuBarMenu: View {
 
     var body: some View {
         Button("Open GHPulse") {
+            NSApp.setActivationPolicy(.regular)
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }
@@ -42,11 +43,25 @@ struct MenuBarMenu: View {
     }
 }
 
-/// Needed when launched via `swift run` (no app bundle): without this the
-/// process stays an accessory and never shows a window or takes focus.
+/// Starts as a regular app (also needed when launched via `swift run`, which
+/// has no bundle), then drops to accessory — menubar only, no Dock icon —
+/// whenever the main window closes.
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowWillClose(_:)),
+            name: NSWindow.willCloseNotification,
+            object: nil
+        )
+    }
+
+    @objc private func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window.identifier?.rawValue.hasPrefix("main") == true else { return }
+        NSApp.setActivationPolicy(.accessory)
     }
 }
