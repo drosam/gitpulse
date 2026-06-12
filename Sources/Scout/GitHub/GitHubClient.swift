@@ -36,9 +36,12 @@ struct GitHubClient: Sendable {
       }
     }
     fragment prFields on PullRequest {
-      id number title url isDraft reviewDecision additions deletions updatedAt
+      id number title url isDraft reviewDecision additions deletions createdAt updatedAt
+      totalCommentsCount
       repository { nameWithOwner }
       author { login }
+      labels(first: 10) { nodes { name color } }
+      commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
     }
     """
 
@@ -108,12 +111,23 @@ private struct PRNode: Decodable {
     var reviewDecision: PullRequest.ReviewDecision?
     var additions: Int?
     var deletions: Int?
+    var createdAt: Date?
     var updatedAt: Date?
+    var totalCommentsCount: Int?
     var repository: Repository?
     var author: Author?
+    var labels: LabelConnection?
+    var commits: CommitConnection?
 
     struct Repository: Decodable { var nameWithOwner: String }
     struct Author: Decodable { var login: String }
+    struct LabelConnection: Decodable { var nodes: [PullRequest.Label?] }
+    struct CommitConnection: Decodable {
+        var nodes: [Node?]
+        struct Node: Decodable { var commit: Commit }
+        struct Commit: Decodable { var statusCheckRollup: Rollup? }
+        struct Rollup: Decodable { var state: PullRequest.CheckState? }
+    }
 
     var pullRequest: PullRequest? {
         guard let id, let number, let title, let url, let updatedAt, let repository else {
@@ -128,8 +142,12 @@ private struct PRNode: Decodable {
             author: author?.login ?? "ghost",
             isDraft: isDraft ?? false,
             reviewDecision: reviewDecision,
+            checkState: commits?.nodes.first??.commit.statusCheckRollup?.state,
+            labels: labels?.nodes.compactMap { $0 } ?? [],
+            commentCount: totalCommentsCount ?? 0,
             additions: additions ?? 0,
             deletions: deletions ?? 0,
+            createdAt: createdAt ?? updatedAt,
             updatedAt: updatedAt
         )
     }
