@@ -43,7 +43,7 @@ struct DashboardView: View {
                 }
             }
         }
-        .navigationTitle("Scout")
+        .navigationTitle("GHPulse")
     }
 }
 
@@ -52,10 +52,10 @@ struct SignInView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "binoculars")
+            Image(systemName: "waveform.path.ecg")
                 .font(.system(size: 40))
                 .foregroundStyle(.secondary)
-            Text("Scout")
+            Text("GHPulse")
                 .font(.title)
             Text("Track your pull requests and review requests on GitHub.")
                 .foregroundStyle(.secondary)

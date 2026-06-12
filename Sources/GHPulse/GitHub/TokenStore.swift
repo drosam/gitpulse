@@ -8,7 +8,7 @@ import Security
 ///
 /// If all miss, the UI falls back to the OAuth device flow.
 enum TokenStore {
-    private static let service = "dev.davidrosa.scout.github-token"
+    private static let service = "dev.davidrosa.ghpulse.github-token"
     private static let account = "github"
 
     static func resolve() -> String? {

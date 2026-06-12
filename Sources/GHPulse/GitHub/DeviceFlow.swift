@@ -6,7 +6,6 @@ import Foundation
 /// (github.com/settings/developers). The client ID is public by design;
 /// device flow needs no client secret.
 struct DeviceFlow: Sendable {
-    /// TODO: replace with the real client ID once the Scout OAuth app is registered.
     static let clientID = "Ov23liJSAbMeX2jhuqpd"
 
     /// `repo` covers private-repo PR search; `read:org` lets search see org PRs.

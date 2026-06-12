@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "Scout",
+    name: "GHPulse",
     platforms: [.macOS(.v15)],
     targets: [
         .executableTarget(
-            name: "Scout",
-            path: "Sources/Scout"
+            name: "GHPulse",
+            path: "Sources/GHPulse"
         )
     ]
 )

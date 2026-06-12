@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct ScoutApp: App {
+struct GHPulseApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var session = Session()
 
