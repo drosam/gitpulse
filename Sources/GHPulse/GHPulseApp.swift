@@ -6,7 +6,7 @@ struct GHPulseApp: App {
     @State private var session = Session()
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             ContentView()
                 .environment(session)
         }
@@ -19,6 +19,26 @@ struct GHPulseApp: App {
                 .keyboardShortcut("r", modifiers: .command)
             }
         }
+
+        MenuBarExtra("GHPulse", systemImage: "circle") {
+            MenuBarMenu()
+        }
+    }
+}
+
+struct MenuBarMenu: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("Open GHPulse") {
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        Divider()
+        Button("Quit GHPulse") {
+            NSApp.terminate(nil)
+        }
+        .keyboardShortcut("q")
     }
 }
 
