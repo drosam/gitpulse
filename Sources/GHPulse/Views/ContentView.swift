@@ -29,8 +29,18 @@ struct DashboardView: View {
 
     var body: some View {
         HSplitView {
-            PRListView(title: "My pull requests", systemImage: "arrow.triangle.pull", pullRequests: dashboard.myPRs)
-            PRListView(title: "Review requested", systemImage: "eye", pullRequests: dashboard.reviewRequests)
+            PRListView(
+                title: "My pull requests",
+                systemImage: "arrow.triangle.pull",
+                pullRequests: dashboard.myPRs,
+                unreadURLs: session.unreadPRURLs
+            )
+            PRListView(
+                title: "Review requested",
+                systemImage: "eye",
+                pullRequests: dashboard.reviewRequests,
+                unreadURLs: session.unreadPRURLs
+            )
         }
         .toolbar {
             ToolbarItem {

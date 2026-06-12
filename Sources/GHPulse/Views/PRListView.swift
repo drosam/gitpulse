@@ -4,6 +4,7 @@ struct PRListView: View {
     var title: String
     var systemImage: String
     var pullRequests: [PullRequest]
+    var unreadURLs: Set<URL> = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -21,7 +22,10 @@ struct PRListView: View {
                 Spacer()
             } else {
                 List(pullRequests) { pullRequest in
-                    PRRow(pullRequest: pullRequest)
+                    PRRow(
+                        pullRequest: pullRequest,
+                        hasNotification: unreadURLs.contains(pullRequest.url)
+                    )
                 }
                 .listStyle(.inset)
             }
@@ -32,8 +36,10 @@ struct PRListView: View {
 
 struct PRRow: View {
     @Environment(\.openURL) private var openURL
+    @Environment(Session.self) private var session
     @State private var isHovering = false
     var pullRequest: PullRequest
+    var hasNotification: Bool = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -62,6 +68,14 @@ struct PRRow: View {
             }
 
             Spacer(minLength: 8)
+
+            if hasNotification {
+                Circle()
+                    .fill(.blue)
+                    .frame(width: 8, height: 8)
+                    .padding(.top, 5)
+                    .help("Unread notification")
+            }
 
             if pullRequest.commentCount > 0 {
                 HStack(spacing: 3) {
@@ -92,11 +106,16 @@ struct PRRow: View {
             }
         }
         .onTapGesture {
-            openURL(pullRequest.url)
+            open()
         }
         .contextMenu {
-            Button("Open on GitHub") { openURL(pullRequest.url) }
+            Button("Open on GitHub") { open() }
         }
+    }
+
+    private func open() {
+        openURL(pullRequest.url)
+        session.markRead(prURL: pullRequest.url)
     }
 
     /// Green open-PR icon, gray dotted draft icon — like GitHub's list.

@@ -20,8 +20,12 @@ struct GHPulseApp: App {
             }
         }
 
-        MenuBarExtra("GHPulse", systemImage: "circle") {
+        MenuBarExtra {
             MenuBarMenu()
+        } label: {
+            // Filled circle = pending notifications, hollow = all clear.
+            Label("GHPulse", systemImage: session.hasUnread ? "circle.fill" : "circle")
+                .labelStyle(.iconOnly)
         }
     }
 }
@@ -51,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        Notifier.shared.setUp()
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(windowWillClose(_:)),
