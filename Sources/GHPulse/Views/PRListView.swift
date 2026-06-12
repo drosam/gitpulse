@@ -61,6 +61,18 @@ struct PRRow: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                if !pullRequest.headBranch.isEmpty {
+                    Text(pullRequest.headBranch)
+                        .font(.caption.monospaced())
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 4))
+                        .foregroundStyle(.secondary)
+                        // Align the branch text (not the chip box) with the rows above/below.
+                        .padding(.leading, -5)
+                }
                 Text(caption)
                     .font(.caption)
                     .foregroundStyle(.secondary)

@@ -28,6 +28,7 @@ struct PullRequest: Identifiable, Hashable, Decodable, Sendable {
     var url: URL
     var repository: String
     var author: String
+    var headBranch: String
     var isDraft: Bool
     var reviewDecision: ReviewDecision?
     var checkState: CheckState?
