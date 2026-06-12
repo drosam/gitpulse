@@ -38,8 +38,13 @@ struct DashboardView: View {
                     .foregroundStyle(.secondary)
             }
             ToolbarItem {
-                Button("Refresh", systemImage: "arrow.clockwise") {
-                    Task { await session.refresh() }
+                if session.isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Button("Refresh", systemImage: "arrow.clockwise") {
+                        Task { await session.refresh() }
+                    }
                 }
             }
         }
