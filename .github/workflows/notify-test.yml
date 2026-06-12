@@ -1,0 +1,15 @@
+name: Notify test
+on:
+  pull_request:
+    types: [opened]
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - run: gh pr comment "$PR" --repo "$REPO" --body "Test notification from github-actions 🤖"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
