@@ -45,10 +45,14 @@ struct PRRow: View {
                     Text(pullRequest.title)
                         .fontWeight(.semibold)
                         .lineLimit(1)
-                        .layoutPriority(1)
                     checkIcon
-                    ForEach(pullRequest.labels, id: \.self) { label in
+                    ForEach(pullRequest.labels.prefix(3), id: \.self) { label in
                         LabelPill(label: label)
+                    }
+                    if pullRequest.labels.count > 3 {
+                        Text("+\(pullRequest.labels.count - 3)")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
                     }
                 }
                 Text(caption)
@@ -217,6 +221,7 @@ struct LabelPill: View {
         Text(label.name)
             .font(.caption2.weight(.semibold))
             .lineLimit(1)
+            .fixedSize()
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
             .background(background, in: Capsule())
