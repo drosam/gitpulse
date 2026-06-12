@@ -33,10 +33,6 @@ struct DashboardView: View {
             PRListView(title: "Review requested", systemImage: "eye", pullRequests: dashboard.reviewRequests)
         }
         .toolbar {
-            ToolbarItem(placement: .status) {
-                Text(dashboard.viewer)
-                    .foregroundStyle(.secondary)
-            }
             ToolbarItem {
                 if session.isRefreshing {
                     ProgressView()
@@ -49,6 +45,7 @@ struct DashboardView: View {
             }
         }
         .navigationTitle("GHPulse")
+        .navigationSubtitle(dashboard.viewer)
     }
 }
 
