@@ -32,6 +32,7 @@ struct PRListView: View {
 
 struct PRRow: View {
     @Environment(\.openURL) private var openURL
+    @State private var isHovering = false
     var pullRequest: PullRequest
 
     var body: some View {
@@ -67,10 +68,26 @@ struct PRRow: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 2)
             }
+
+            Image(systemName: "arrow.up.right")
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
+                .opacity(isHovering ? 1 : 0)
         }
         .padding(.vertical, 4)
+        .padding(.horizontal, 6)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) {
+        .background(isHovering ? Color.primary.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .onHover { hovering in
+            isHovering = hovering
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+        .onTapGesture {
             openURL(pullRequest.url)
         }
         .contextMenu {
