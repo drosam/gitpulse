@@ -31,6 +31,9 @@ struct GitHubClient: Sendable {
       mine: search(query: "is:pr is:open author:@me archived:false", type: ISSUE, first: 50) {
         nodes { ...prFields }
       }
+      assigned: search(query: "is:pr is:open assignee:@me archived:false", type: ISSUE, first: 50) {
+        nodes { ...prFields }
+      }
       reviews: search(query: "is:pr is:open review-requested:@me archived:false", type: ISSUE, first: 50) {
         nodes { ...prFields }
       }
@@ -68,9 +71,16 @@ struct GitHubClient: Sendable {
             throw GitHubError.graphQL(["empty response"])
         }
 
+        // "My pull requests" = authored + assigned, deduplicated (you can be both).
+        let authored = payload.mine.nodes.compactMap { $0?.pullRequest }
+        let assigned = payload.assigned.nodes.compactMap { $0?.pullRequest }
+        var seen = Set(authored.map(\.id))
+        let myPRs = (authored + assigned.filter { seen.insert($0.id).inserted })
+            .sorted { $0.updatedAt > $1.updatedAt }
+
         return Dashboard(
             viewer: payload.viewer.login,
-            myPRs: payload.mine.nodes.compactMap { $0?.pullRequest },
+            myPRs: myPRs,
             reviewRequests: payload.reviews.nodes.compactMap { $0?.pullRequest }
         )
     }
@@ -90,6 +100,7 @@ private struct GraphQLError: Decodable {
 private struct Payload: Decodable {
     var viewer: Viewer
     var mine: SearchResult
+    var assigned: SearchResult
     var reviews: SearchResult
 }
 
