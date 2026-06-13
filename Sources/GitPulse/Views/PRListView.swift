@@ -5,6 +5,9 @@ struct PRListView: View {
     var systemImage: String
     var pullRequests: [PullRequest]
     var unreadURLs: Set<URL> = []
+    @State private var selectedID: PullRequest.ID?
+    @Environment(\.openURL) private var openURL
+    @Environment(Session.self) private var session
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -21,13 +24,21 @@ struct PRListView: View {
                     .frame(maxWidth: .infinity)
                 Spacer()
             } else {
-                List(pullRequests) { pullRequest in
+                List(pullRequests, selection: $selectedID) { pullRequest in
                     PRRow(
                         pullRequest: pullRequest,
                         hasNotification: unreadURLs.contains(pullRequest.url)
                     )
+                    .tag(pullRequest.id)
                 }
                 .listStyle(.inset)
+                .onKeyPress(.return) {
+                    guard let id = selectedID,
+                          let pr = pullRequests.first(where: { $0.id == id }) else { return .ignored }
+                    openURL(pr.url)
+                    session.markRead(prURL: pr.url)
+                    return .handled
+                }
             }
         }
         .frame(minWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
