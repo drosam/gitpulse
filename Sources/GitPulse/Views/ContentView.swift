@@ -54,7 +54,7 @@ struct DashboardView: View {
                 }
             }
         }
-        .navigationTitle("GHPulse")
+        .navigationTitle("GitPulse")
         .navigationSubtitle(dashboard.viewer)
     }
 }
@@ -67,7 +67,7 @@ struct SignInView: View {
             Image(systemName: "waveform.path.ecg")
                 .font(.system(size: 40))
                 .foregroundStyle(.secondary)
-            Text("GHPulse")
+            Text("GitPulse")
                 .font(.title)
             Text("Track your pull requests and review requests on GitHub.")
                 .foregroundStyle(.secondary)

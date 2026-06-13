@@ -1,4 +1,4 @@
-APP_NAME := GHPulse
+APP_NAME := GitPulse
 PREFIX ?= /Applications
 APP := $(PREFIX)/$(APP_NAME).app
 BINARY := .build/release/$(APP_NAME)

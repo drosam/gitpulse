@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct GHPulseApp: App {
+struct GitPulseApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var session = Session()
 
@@ -24,7 +24,7 @@ struct GHPulseApp: App {
             MenuBarMenu()
         } label: {
             // Filled circle = pending notifications, hollow = all clear.
-            Label("GHPulse", systemImage: session.hasUnread ? "circle.fill" : "circle")
+            Label("GitPulse", systemImage: session.hasUnread ? "circle.fill" : "circle")
                 .labelStyle(.iconOnly)
         }
     }
@@ -34,13 +34,13 @@ struct MenuBarMenu: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button("Open GHPulse") {
+        Button("Open GitPulse") {
             NSApp.setActivationPolicy(.regular)
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }
         Divider()
-        Button("Quit GHPulse") {
+        Button("Quit GitPulse") {
             NSApp.terminate(nil)
         }
         .keyboardShortcut("q")
