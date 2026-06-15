@@ -55,7 +55,7 @@ struct GitPulseApp: App {
             x: pad, y: pad,
             width: size.width - pad * 2, height: size.height - pad * 2
         ))
-        NSColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1).setFill()
+        NSColor(srgbRed: 0.0, green: 0.478, blue: 1.0, alpha: 1).setFill()
         dot.fill()
 
         image.unlockFocus()
