@@ -5,14 +5,14 @@ struct PRListView: View {
     var systemImage: String
     var pullRequests: [PullRequest]
     var unreadURLs: Set<URL> = []
-    @State private var selectedID: PullRequest.ID?
-    @Environment(\.openURL) private var openURL
-    @Environment(Session.self) private var session
+    var isActive: Bool
+    @Binding var selectedID: PullRequest.ID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Label("\(title) (\(pullRequests.count))", systemImage: systemImage)
                 .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(isActive ? Color.primary : Color.secondary)
                 .padding(10)
 
             Divider()
@@ -32,16 +32,17 @@ struct PRListView: View {
                     .tag(pullRequest.id)
                 }
                 .listStyle(.inset)
-                .onKeyPress(.return) {
-                    guard let id = selectedID,
-                          let pr = pullRequests.first(where: { $0.id == id }) else { return .ignored }
-                    openURL(pr.url)
-                    session.markRead(prURL: pr.url)
-                    return .handled
-                }
             }
         }
         .frame(minWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
+        // Dim the inactive pane's selection so the focused pane is obvious.
+        .overlay(alignment: .top) {
+            if isActive {
+                Rectangle()
+                    .fill(Color.accentColor)
+                    .frame(height: 2)
+            }
+        }
     }
 }
 
@@ -287,5 +288,63 @@ struct LabelPill: View {
 
     private var isLight: Bool {
         0.299 * rgb.red + 0.587 * rgb.green + 0.114 * rgb.blue > 0.6
+    }
+}
+
+/// Single window-wide key monitor for keyboard navigation.
+/// Installed ONCE by DashboardView — never per-pane — so each keypress is handled exactly once.
+struct KeyNavigator: NSViewRepresentable {
+    var onUp: () -> Void
+    var onDown: () -> Void
+    var onLeft: () -> Void
+    var onRight: () -> Void
+    var onReturn: () -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        context.coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak coordinator = context.coordinator] event in
+            guard let coordinator else { return event }
+            let keyCode = event.keyCode
+            var consume = false
+            MainActor.assumeIsolated {
+                switch keyCode {
+                case 126: coordinator.onUp();    consume = true   // Up
+                case 125: coordinator.onDown();  consume = true   // Down
+                case 123: coordinator.onLeft();  consume = true   // Left
+                case 124: coordinator.onRight(); consume = true   // Right
+                case 36, 76: coordinator.onReturn(); consume = true  // Return / Enter
+                default: break
+                }
+            }
+            return consume ? nil : event
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.onUp = onUp
+        context.coordinator.onDown = onDown
+        context.coordinator.onLeft = onLeft
+        context.coordinator.onRight = onRight
+        context.coordinator.onReturn = onReturn
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onUp: onUp, onDown: onDown, onLeft: onLeft, onRight: onRight, onReturn: onReturn)
+    }
+
+    class Coordinator {
+        var onUp: () -> Void
+        var onDown: () -> Void
+        var onLeft: () -> Void
+        var onRight: () -> Void
+        var onReturn: () -> Void
+        var monitor: Any?
+
+        init(onUp: @escaping () -> Void, onDown: @escaping () -> Void, onLeft: @escaping () -> Void, onRight: @escaping () -> Void, onReturn: @escaping () -> Void) {
+            self.onUp = onUp; self.onDown = onDown; self.onLeft = onLeft; self.onRight = onRight; self.onReturn = onReturn
+        }
+
+        deinit { monitor.map { NSEvent.removeMonitor($0) } }
     }
 }
