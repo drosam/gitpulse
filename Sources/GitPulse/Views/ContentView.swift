@@ -41,7 +41,10 @@ struct DashboardView: View {
                 pullRequests: dashboard.myPRs,
                 unreadURLs: session.unreadPRURLs,
                 isActive: activePane == .mine,
-                selectedID: $mySelectedID
+                selectedID: Binding(
+                    get: { activePane == .mine ? mySelectedID : nil },
+                    set: { mySelectedID = $0; activePane = .mine }
+                )
             )
             PRListView(
                 title: "Review requested",
@@ -49,7 +52,10 @@ struct DashboardView: View {
                 pullRequests: dashboard.reviewRequests,
                 unreadURLs: session.unreadPRURLs,
                 isActive: activePane == .review,
-                selectedID: $reviewSelectedID
+                selectedID: Binding(
+                    get: { activePane == .review ? reviewSelectedID : nil },
+                    set: { reviewSelectedID = $0; activePane = .review }
+                )
             )
         }
         .background(KeyNavigator(

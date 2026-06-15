@@ -35,14 +35,6 @@ struct PRListView: View {
             }
         }
         .frame(minWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
-        // Dim the inactive pane's selection so the focused pane is obvious.
-        .overlay(alignment: .top) {
-            if isActive {
-                Rectangle()
-                    .fill(Color.accentColor)
-                    .frame(height: 2)
-            }
-        }
     }
 }
 
