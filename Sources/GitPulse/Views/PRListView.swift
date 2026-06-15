@@ -77,10 +77,18 @@ struct PRRow: View {
                         // Align the branch text (not the chip box) with the rows above/below.
                         .padding(.leading, -5)
                 }
-                Text(caption)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(caption)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    if isQueued {
+                        Text("•")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                        mergeQueuePill
+                    }
+                }
             }
 
             Spacer(minLength: 8)
@@ -134,12 +142,26 @@ struct PRRow: View {
         session.markRead(prURL: pullRequest.url)
     }
 
-    /// Green open-PR icon, gray dotted draft icon — like GitHub's list.
-    private var stateIcon: some View {
-        PullRequestIcon(isDraft: pullRequest.isDraft)
-            .foregroundStyle(pullRequest.isDraft ? Color.secondary : Color.green)
-            .help(pullRequest.isDraft ? "Draft pull request" : "Open pull request")
+    private var isQueued: Bool {
+        pullRequest.mergeQueueState == "QUEUED" || pullRequest.mergeQueueState == "AWAITING_CHECKS"
     }
+
+    /// Gold merge-queue glyph while the PR waits in the queue, otherwise the
+    /// green open-PR icon (gray dotted for drafts) — like GitHub's list.
+    @ViewBuilder
+    private var stateIcon: some View {
+        if isQueued {
+            MergeQueueIcon()
+                .foregroundStyle(Self.queuedGold)
+                .help("Waiting in the merge queue")
+        } else {
+            PullRequestIcon(isDraft: pullRequest.isDraft)
+                .foregroundStyle(pullRequest.isDraft ? Color.secondary : Color.green)
+                .help(pullRequest.isDraft ? "Draft pull request" : "Open pull request")
+        }
+    }
+
+    private static let queuedGold = Color(red: 0.85, green: 0.62, blue: 0.10)
 
     /// Head-commit check rollup: ✓ green, ✗ red, ● yellow while running.
     @ViewBuilder
@@ -159,6 +181,21 @@ struct PRRow: View {
                 .foregroundStyle(.yellow)
         case nil:
             EmptyView()
+        }
+    }
+
+    /// Yellow "Queued" badge, shown only while the PR sits in a merge queue
+    /// waiting (QUEUED or AWAITING_CHECKS). Other merge-queue states get no pill.
+    @ViewBuilder
+    private var mergeQueuePill: some View {
+        if isQueued {
+            Text("Queued")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(Self.queuedGold)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Self.queuedGold.opacity(0.15), in: Capsule())
+            .help("Waiting in the merge queue")
         }
     }
 
@@ -244,6 +281,41 @@ struct PullRequestIcon: View {
             path.move(to: CGPoint(x: x, y: startY))
             path.addLine(to: CGPoint(x: x, y: endY))
         }
+    }
+}
+
+/// GitHub's `git-merge-queue` octicon, hand-traced in a 16×16 design space:
+/// a top-left dot above a left rail ending in a ring, a middle dot, and a
+/// bottom-right ring. Ring holes are erased with a `.clear` pass so the row
+/// background shows through. Tinted via `foregroundStyle`.
+struct MergeQueueIcon: View {
+    var body: some View {
+        Canvas { context, size in
+            let scale = min(size.width, size.height) / 16
+            context.scaleBy(x: scale, y: scale)
+
+            // Solid bodies: two dots, the left rail, and the two outer rings.
+            var solid = Path()
+            solid.addPath(dot(at: CGPoint(x: 3.75, y: 3.25), r: 1.25))   // top-left dot
+            solid.addPath(dot(at: CGPoint(x: 7.5, y: 6.0), r: 1.25))     // middle dot
+            // Left rail: rounded-top bar dropping into the bottom-left ring.
+            solid.addPath(Path(roundedRect: CGRect(x: 3.0, y: 7.0, width: 1.5, height: 6.0), cornerSize: CGSize(width: 0.75, height: 0.75)))
+            solid.addPath(dot(at: CGPoint(x: 3.75, y: 12.75), r: 2.25))  // bottom-left ring (outer)
+            solid.addPath(dot(at: CGPoint(x: 12.25, y: 8.5), r: 2.25))   // bottom-right ring (outer)
+            context.fill(solid, with: .foreground)
+
+            // Punch the ring holes so the background shows through.
+            var holes = Path()
+            holes.addPath(dot(at: CGPoint(x: 3.75, y: 12.75), r: 0.75))
+            holes.addPath(dot(at: CGPoint(x: 12.25, y: 8.5), r: 0.75))
+            context.blendMode = .clear
+            context.fill(holes, with: .color(.black))
+        }
+        .frame(width: 16, height: 16)
+    }
+
+    private func dot(at center: CGPoint, r: CGFloat) -> Path {
+        Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2))
     }
 }
 
