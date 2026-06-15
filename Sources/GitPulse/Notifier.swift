@@ -87,6 +87,42 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         UNUserNotificationCenter.current().add(request)
     }
 
+    /// Banner for one of your PRs that just merged. Derived from the merged
+    /// search, not the inbox; the PR has left the open panes by now.
+    func postMerged(for pullRequest: PullRequest) {
+        guard available else { return }
+        let content = UNMutableNotificationContent()
+        content.title = pullRequest.repository
+        content.subtitle = "Merged"
+        content.body = pullRequest.title
+        content.sound = .default
+        content.userInfo = ["url": pullRequest.url.absoluteString]
+        let request = UNNotificationRequest(
+            identifier: "merged-\(pullRequest.id)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    /// Banner for a PR that dropped out of the merge queue while still open
+    /// (kicked for a conflict, failed required check, base moved, manual remove).
+    func postMergeQueueExit(for pullRequest: PullRequest) {
+        guard available else { return }
+        let content = UNMutableNotificationContent()
+        content.title = pullRequest.repository
+        content.subtitle = "Removed from the merge queue"
+        content.body = pullRequest.title
+        content.sound = .default
+        content.userInfo = ["url": pullRequest.url.absoluteString]
+        let request = UNNotificationRequest(
+            identifier: "queue-exit-\(pullRequest.id)-\(pullRequest.updatedAt.timeIntervalSince1970)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
     /// Banner for a PR you were just asked to review. Derived from the review
     /// pane entering the dashboard, not the notification inbox.
     func postReviewRequest(for pullRequest: PullRequest) {

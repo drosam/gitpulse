@@ -45,6 +45,9 @@ struct PullRequest: Identifiable, Hashable, Sendable {
     var isDraft: Bool
     var reviewDecision: ReviewDecision?
     var checkState: CheckState?
+    /// Raw `mergeQueueEntry.state` (QUEUED / MERGEABLE / …); nil when the PR is
+    /// not sitting in a merge queue. Drives the "left the merge queue" banner.
+    var mergeQueueState: String?
     var labels: [Label]
     /// Recent comments + reviews, newest last; drives local notifications.
     var activity: [ActivityEvent]

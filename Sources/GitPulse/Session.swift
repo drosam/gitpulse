@@ -30,10 +30,19 @@ final class Session {
     /// PRs currently asking for your review, to banner ones that newly appear.
     private var knownReviewRequestIDs: Set<PullRequest.ID> = []
     private var hasSeededReviewRequests = false
+    /// PRs currently sitting in a merge queue, to banner ones that drop out
+    /// while still open. Recomputed each pass, so it needs no separate pruning.
+    private var prsInMergeQueue: Set<PullRequest.ID> = []
+    private var hasSeededMergeQueue = false
+    /// IDs of recently merged PRs we've already bannered. Persisted, so a merge
+    /// that lands while the app is closed banners once on the next launch.
+    private var knownMergedIDs: Set<PullRequest.ID> = []
+    private var hasSeededMerged = false
 
     private static let autoRefreshInterval: Duration = .seconds(60)
     private static let activityKey = "lastActivityAt"
     private static let unreadKey = "unreadURLs"
+    private static let mergedKey = "knownMergedIDs"
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.activityKey),
@@ -43,6 +52,13 @@ final class Session {
         if let data = UserDefaults.standard.data(forKey: Self.unreadKey),
            let decoded = try? JSONDecoder().decode(Set<URL>.self, from: data) {
             unreadURLs = decoded
+        }
+        // A persisted set means a prior run already seeded; banner anything new
+        // on the first refresh. A fresh install seeds silently instead.
+        if let data = UserDefaults.standard.data(forKey: Self.mergedKey),
+           let decoded = try? JSONDecoder().decode(Set<PullRequest.ID>.self, from: data) {
+            knownMergedIDs = decoded
+            hasSeededMerged = true
         }
     }
 
@@ -97,9 +113,14 @@ final class Session {
         knownReviewRequestIDs = []
         hasSeededReviewRequests = false
         hasSeededChecks = false
+        prsInMergeQueue = []
+        hasSeededMergeQueue = false
+        knownMergedIDs = []
+        hasSeededMerged = false
         unreadURLs = []
         UserDefaults.standard.removeObject(forKey: Self.activityKey)
         UserDefaults.standard.removeObject(forKey: Self.unreadKey)
+        UserDefaults.standard.removeObject(forKey: Self.mergedKey)
         updateDockBadge()
         TokenStore.clear()
         token = nil
@@ -145,6 +166,8 @@ final class Session {
         detectFinishedChecks(in: dashboard)
         detectNewActivity(in: dashboard)
         detectNewReviewRequests(in: dashboard)
+        detectMergeQueueExits(in: dashboard)
+        detectMergedPRs(in: dashboard)
         pruneState(keeping: dashboard)
         saveNotificationState()
     }
@@ -197,6 +220,36 @@ final class Session {
         hasSeededReviewRequests = true
     }
 
+    /// Posts a banner when an open PR drops out of the merge queue (kicked for a
+    /// conflict, failed check, moved base, or manual removal). A clean merge
+    /// removes the PR from the open searches entirely, so it leaves `myPRs` and
+    /// never reaches here — that path is handled by `detectMergedPRs`.
+    private func detectMergeQueueExits(in dashboard: Dashboard) {
+        let prs = dashboard.myPRs + dashboard.reviewRequests
+        if hasSeededMergeQueue {
+            for pr in prs where prsInMergeQueue.contains(pr.id) && pr.mergeQueueState == nil {
+                Notifier.shared.postMergeQueueExit(for: pr)
+                unreadURLs.insert(pr.url)
+            }
+        }
+        prsInMergeQueue = Set(prs.filter { $0.mergeQueueState != nil }.map(\.id))
+        hasSeededMergeQueue = true
+    }
+
+    /// Posts a banner for each newly merged PR you authored. Sourced from the
+    /// merged search since merged PRs leave the open panes; no unread mark
+    /// because there's no row to clear. Seeds silently only on a fresh install.
+    private func detectMergedPRs(in dashboard: Dashboard) {
+        let ids = Set(dashboard.recentlyMerged.map(\.id))
+        if hasSeededMerged {
+            for pr in dashboard.recentlyMerged where !knownMergedIDs.contains(pr.id) {
+                Notifier.shared.postMerged(for: pr)
+            }
+        }
+        knownMergedIDs = ids
+        hasSeededMerged = true
+    }
+
     /// Drops per-PR tracking state for PRs no longer shown in the app, so the
     /// maps don't grow without bound as PRs are merged/closed.
     private func pruneState(keeping dashboard: Dashboard) {
@@ -215,6 +268,9 @@ final class Session {
         }
         if let data = try? JSONEncoder().encode(unreadURLs) {
             UserDefaults.standard.set(data, forKey: Self.unreadKey)
+        }
+        if let data = try? JSONEncoder().encode(knownMergedIDs) {
+            UserDefaults.standard.set(data, forKey: Self.mergedKey)
         }
     }
 

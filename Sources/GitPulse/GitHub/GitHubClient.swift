@@ -4,6 +4,9 @@ struct Dashboard: Sendable {
     var viewer: String
     var myPRs: [PullRequest]
     var reviewRequests: [PullRequest]
+    /// Recently merged PRs you authored. Not shown in any pane — used only to
+    /// banner a merge once, since merged PRs drop out of the open searches.
+    var recentlyMerged: [PullRequest]
 }
 
 enum GitHubError: LocalizedError {
@@ -37,6 +40,9 @@ struct GitHubClient: Sendable {
       reviews: search(query: "is:pr is:open review-requested:@me archived:false", type: ISSUE, first: 50) {
         nodes { ...prFields }
       }
+      merged: search(query: "is:pr is:merged author:@me archived:false sort:updated-desc", type: ISSUE, first: 20) {
+        nodes { ...prFields }
+      }
     }
     fragment prFields on PullRequest {
       id number title url isDraft reviewDecision additions deletions createdAt updatedAt
@@ -44,6 +50,7 @@ struct GitHubClient: Sendable {
       totalCommentsCount
       repository { nameWithOwner }
       author { login }
+      mergeQueueEntry { state }
       labels(first: 10) { nodes { name color } }
       commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
       comments(last: 10) { nodes { author { login } createdAt } }
@@ -84,7 +91,8 @@ struct GitHubClient: Sendable {
         return Dashboard(
             viewer: payload.viewer.login,
             myPRs: myPRs,
-            reviewRequests: payload.reviews.nodes.compactMap { $0?.pullRequest }
+            reviewRequests: payload.reviews.nodes.compactMap { $0?.pullRequest },
+            recentlyMerged: payload.merged.nodes.compactMap { $0?.pullRequest }
         )
     }
 }
@@ -105,6 +113,7 @@ private struct Payload: Decodable {
     var mine: SearchResult
     var assigned: SearchResult
     var reviews: SearchResult
+    var merged: SearchResult
 }
 
 private struct Viewer: Decodable {
@@ -131,6 +140,7 @@ private struct PRNode: Decodable {
     var totalCommentsCount: Int?
     var repository: Repository?
     var author: Author?
+    var mergeQueueEntry: MergeQueueEntry?
     var labels: LabelConnection?
     var commits: CommitConnection?
     var comments: CommentConnection?
@@ -138,6 +148,7 @@ private struct PRNode: Decodable {
 
     struct Repository: Decodable { var nameWithOwner: String }
     struct Author: Decodable { var login: String }
+    struct MergeQueueEntry: Decodable { var state: String? }
     struct LabelConnection: Decodable { var nodes: [PullRequest.Label?] }
     struct CommitConnection: Decodable {
         var nodes: [Node?]
@@ -183,6 +194,7 @@ private struct PRNode: Decodable {
             isDraft: isDraft ?? false,
             reviewDecision: reviewDecision,
             checkState: commits?.nodes.first??.commit.statusCheckRollup?.state,
+            mergeQueueState: mergeQueueEntry?.state,
             labels: labels?.nodes.compactMap { $0 } ?? [],
             activity: activityEvents,
             commentCount: totalCommentsCount ?? 0,
