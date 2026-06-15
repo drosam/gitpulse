@@ -23,9 +23,18 @@ struct GitPulseApp: App {
         MenuBarExtra {
             MenuBarMenu()
         } label: {
-            // Filled circle = pending notifications, hollow = all clear.
-            Label("GitPulse", systemImage: session.hasUnread ? "circle.fill" : "circle")
-                .labelStyle(.iconOnly)
+            // White ring with a coloured inner dot = pending; hollow ring = clear.
+            if session.hasUnread {
+                ZStack {
+                    Circle().stroke(.white, lineWidth: 1.4)
+                    Circle()
+                        .fill(Color(red: 1.0, green: 0.42, blue: 0.21))
+                        .padding(3.5)
+                }
+                .frame(width: 15, height: 15)
+            } else {
+                Image(systemName: "circle")
+            }
         }
     }
 }

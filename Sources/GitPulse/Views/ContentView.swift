@@ -47,7 +47,8 @@ struct DashboardView: View {
             onDown: { move(1) },
             onLeft: { switchTo(.mine) },
             onRight: { switchTo(.review) },
-            onReturn: openSelected
+            onReturn: openSelected,
+            onSpace: dismissSelected
         ))
         .onAppear { selectFirstIfNeeded() }
         .toolbar {
@@ -125,6 +126,12 @@ struct DashboardView: View {
     private func openSelected() {
         guard let pr = activePRs.first(where: { $0.id == activeSelection }) else { return }
         openURL(pr.url)
+        session.markRead(prURL: pr.url)
+    }
+
+    /// Space dismisses the selected PR's unread mark without opening it.
+    private func dismissSelected() {
+        guard let pr = activePRs.first(where: { $0.id == activeSelection }) else { return }
         session.markRead(prURL: pr.url)
     }
 

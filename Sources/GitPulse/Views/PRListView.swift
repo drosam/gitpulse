@@ -88,9 +88,12 @@ struct PRRow: View {
             if hasNotification {
                 Circle()
                     .fill(.blue)
-                    .frame(width: 8, height: 8)
-                    .padding(.top, 5)
-                    .help("Unread notification")
+                    .padding(2)
+                    .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 1.5))
+                    .frame(width: 13, height: 13)
+                    .shadow(color: .blue.opacity(0.6), radius: 2)
+                    .padding(.top, 4)
+                    .help("Unread notification — press space to dismiss")
             }
 
             if pullRequest.commentCount > 0 {
@@ -291,6 +294,7 @@ struct KeyNavigator: NSViewRepresentable {
     var onLeft: () -> Void
     var onRight: () -> Void
     var onReturn: () -> Void
+    var onSpace: () -> Void
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
@@ -305,6 +309,7 @@ struct KeyNavigator: NSViewRepresentable {
                 case 123: coordinator.onLeft();  consume = true   // Left
                 case 124: coordinator.onRight(); consume = true   // Right
                 case 36, 76: coordinator.onReturn(); consume = true  // Return / Enter
+                case 49: coordinator.onSpace(); consume = true  // Space
                 default: break
                 }
             }
@@ -319,10 +324,11 @@ struct KeyNavigator: NSViewRepresentable {
         context.coordinator.onLeft = onLeft
         context.coordinator.onRight = onRight
         context.coordinator.onReturn = onReturn
+        context.coordinator.onSpace = onSpace
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onUp: onUp, onDown: onDown, onLeft: onLeft, onRight: onRight, onReturn: onReturn)
+        Coordinator(onUp: onUp, onDown: onDown, onLeft: onLeft, onRight: onRight, onReturn: onReturn, onSpace: onSpace)
     }
 
     class Coordinator {
@@ -331,10 +337,11 @@ struct KeyNavigator: NSViewRepresentable {
         var onLeft: () -> Void
         var onRight: () -> Void
         var onReturn: () -> Void
+        var onSpace: () -> Void
         var monitor: Any?
 
-        init(onUp: @escaping () -> Void, onDown: @escaping () -> Void, onLeft: @escaping () -> Void, onRight: @escaping () -> Void, onReturn: @escaping () -> Void) {
-            self.onUp = onUp; self.onDown = onDown; self.onLeft = onLeft; self.onRight = onRight; self.onReturn = onReturn
+        init(onUp: @escaping () -> Void, onDown: @escaping () -> Void, onLeft: @escaping () -> Void, onRight: @escaping () -> Void, onReturn: @escaping () -> Void, onSpace: @escaping () -> Void) {
+            self.onUp = onUp; self.onDown = onDown; self.onLeft = onLeft; self.onRight = onRight; self.onReturn = onReturn; self.onSpace = onSpace
         }
 
         deinit { monitor.map { NSEvent.removeMonitor($0) } }
