@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct ContentView: View {
@@ -34,6 +35,38 @@ struct DashboardView: View {
     var dashboard: Dashboard
 
     var body: some View {
+        VStack(spacing: 0) {
+            if Notifier.shared.authorizationDenied {
+                NotificationPermissionBanner()
+                Divider()
+            }
+            paneSplit
+        }
+        .background(KeyNavigator(
+            onUp: { move(-1) },
+            onDown: { move(1) },
+            onLeft: { switchTo(.mine) },
+            onRight: { switchTo(.review) },
+            onReturn: openSelected
+        ))
+        .onAppear { selectFirstIfNeeded() }
+        .toolbar {
+            ToolbarItem {
+                if session.isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Button("Refresh", systemImage: "arrow.clockwise") {
+                        Task { await session.refresh() }
+                    }
+                }
+            }
+        }
+        .navigationTitle("GitPulse")
+        .navigationSubtitle(dashboard.viewer)
+    }
+
+    private var paneSplit: some View {
         HSplitView {
             PRListView(
                 title: "My pull requests",
@@ -58,28 +91,6 @@ struct DashboardView: View {
                 )
             )
         }
-        .background(KeyNavigator(
-            onUp: { move(-1) },
-            onDown: { move(1) },
-            onLeft: { switchTo(.mine) },
-            onRight: { switchTo(.review) },
-            onReturn: openSelected
-        ))
-        .onAppear { selectFirstIfNeeded() }
-        .toolbar {
-            ToolbarItem {
-                if session.isRefreshing {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Button("Refresh", systemImage: "arrow.clockwise") {
-                        Task { await session.refresh() }
-                    }
-                }
-            }
-        }
-        .navigationTitle("GitPulse")
-        .navigationSubtitle(dashboard.viewer)
     }
 
     // MARK: - Keyboard navigation
@@ -119,6 +130,30 @@ struct DashboardView: View {
 
     private func selectFirstIfNeeded() {
         if mySelectedID == nil, let first = dashboard.myPRs.first { mySelectedID = first.id }
+    }
+}
+
+/// Shown when macOS notification permission is denied — otherwise banners are
+/// silently dropped and the user never learns why review alerts stopped.
+struct NotificationPermissionBanner: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "bell.slash.fill")
+                .foregroundStyle(.orange)
+            Text("Notifications are turned off, so review alerts won't appear.")
+                .font(.system(size: 12))
+            Spacer()
+            Button("Open Settings") {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            .font(.system(size: 12))
+            .buttonStyle(.link)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color.orange.opacity(0.12))
     }
 }
 

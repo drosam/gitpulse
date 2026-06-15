@@ -23,7 +23,12 @@ struct NotificationsClient: Sendable {
         var pollInterval: Int
     }
 
-    private static let endpoint = URL(string: "https://api.github.com/notifications")!
+    // `participating=true` excludes watch-noise (e.g. `ci_activity` CheckSuite
+    // notifications for repos you merely watch) which otherwise floods the first
+    // page and buries review-requested / mention / assignment threads. CI status
+    // for the PRs you actually care about is derived locally in Session from the
+    // dashboard's check state, so nothing is lost by dropping the firehose here.
+    private static let endpoint = URL(string: "https://api.github.com/notifications?participating=true")!
 
     func fetch(etag: String?) async throws -> FetchResult {
         var request = URLRequest(url: Self.endpoint)

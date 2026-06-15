@@ -64,6 +64,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        Notifier.shared.refreshAuthorizationStatus()
+    }
+
     @objc private func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow,
               window.identifier?.rawValue.hasPrefix("main") == true else { return }

@@ -22,8 +22,21 @@ final class Session {
     private var notificationsETag: String?
     private var seenNotifications: [String: Date] = [:]
     private var hasSeededNotifications = false
+    /// Last seen head-commit check state per PR, to detect CI finishing.
+    private var lastCheckState: [PullRequest.ID: PullRequest.CheckState] = [:]
+    private var hasSeededChecks = false
 
     private static let autoRefreshInterval: Duration = .seconds(60)
+    private static let seenKey = "seenNotifications"
+    private static let seededKey = "hasSeededNotifications"
+
+    init() {
+        hasSeededNotifications = UserDefaults.standard.bool(forKey: Self.seededKey)
+        if let data = UserDefaults.standard.data(forKey: Self.seenKey),
+           let decoded = try? JSONDecoder().decode([String: Date].self, from: data) {
+            seenNotifications = decoded
+        }
+    }
 
     var hasUnread: Bool { !notifications.isEmpty }
 
@@ -47,7 +60,9 @@ final class Session {
         isRefreshing = true
         defer { isRefreshing = false }
         do {
-            state = .ready(try await GitHubClient(token: token).fetchDashboard())
+            let dashboard = try await GitHubClient(token: token).fetchDashboard()
+            detectFinishedChecks(in: dashboard)
+            state = .ready(dashboard)
         } catch {
             state = .failed(error.localizedDescription)
         }
@@ -76,6 +91,8 @@ final class Session {
         notificationsETag = nil
         seenNotifications = [:]
         hasSeededNotifications = false
+        UserDefaults.standard.removeObject(forKey: Self.seenKey)
+        UserDefaults.standard.removeObject(forKey: Self.seededKey)
         notifications = []
         updateDockBadge()
         TokenStore.clear()
@@ -116,8 +133,26 @@ final class Session {
     private func backgroundRefresh() async {
         guard let token else { return }
         if let dashboard = try? await GitHubClient(token: token).fetchDashboard() {
+            detectFinishedChecks(in: dashboard)
             state = .ready(dashboard)
         }
+    }
+
+    /// Posts a banner when a dashboard PR's checks transition to a finished
+    /// state (passed / failed). Scoped to the PRs shown in the app — your PRs
+    /// and review requests — never the whole-repo CI firehose. The first pass
+    /// after launch seeds silently so we don't blast banners for old results.
+    private func detectFinishedChecks(in dashboard: Dashboard) {
+        let prs = dashboard.myPRs + dashboard.reviewRequests
+        for pr in prs {
+            guard let state = pr.checkState else { continue }
+            let previous = lastCheckState[pr.id]
+            lastCheckState[pr.id] = state
+            let finished = state == .success || state == .failure || state == .error
+            guard hasSeededChecks, finished, state != previous else { continue }
+            Notifier.shared.postCheckResult(for: pr, passed: state == .success)
+        }
+        hasSeededChecks = true
     }
 
     // MARK: - Notifications
@@ -164,6 +199,14 @@ final class Session {
         }
         notifications = fetched
         updateDockBadge()
+        saveNotificationState()
+    }
+
+    private func saveNotificationState() {
+        UserDefaults.standard.set(hasSeededNotifications, forKey: Self.seededKey)
+        if let data = try? JSONEncoder().encode(seenNotifications) {
+            UserDefaults.standard.set(data, forKey: Self.seenKey)
+        }
     }
 
     private func updateDockBadge() {
