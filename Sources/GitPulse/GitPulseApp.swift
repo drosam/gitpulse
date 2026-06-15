@@ -23,7 +23,7 @@ struct GitPulseApp: App {
         MenuBarExtra {
             MenuBarMenu()
         } label: {
-            // White ring + gap + orange inner dot = pending; hollow ring = clear.
+            // White ring + blue inner dot = pending; hollow ring = clear.
             // Pending uses a non-template NSImage so the menu bar keeps its
             // colour instead of flattening it to monochrome (which hid it).
             if session.hasUnread {
@@ -34,7 +34,7 @@ struct GitPulseApp: App {
         }
     }
 
-    /// Hand-drawn pending icon: white outer ring, gap, orange inner dot.
+    /// Hand-drawn pending icon: white outer ring, blue inner dot.
     /// `isTemplate = false` keeps the colours in the menu bar.
     private static let unreadIcon: NSImage = {
         let size = NSSize(width: 16, height: 16)
@@ -50,12 +50,12 @@ struct GitPulseApp: App {
         NSColor.white.setStroke()
         ring.stroke()
 
-        let pad: CGFloat = 4.5
+        let pad: CGFloat = 2.9
         let dot = NSBezierPath(ovalIn: NSRect(
             x: pad, y: pad,
             width: size.width - pad * 2, height: size.height - pad * 2
         ))
-        NSColor(red: 1.0, green: 0.42, blue: 0.21, alpha: 1).setFill()
+        NSColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1).setFill()
         dot.fill()
 
         image.unlockFocus()
