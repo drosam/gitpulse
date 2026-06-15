@@ -88,10 +88,7 @@ struct PRRow: View {
             if hasNotification {
                 Circle()
                     .fill(.blue)
-                    .padding(2)
-                    .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 1.5))
-                    .frame(width: 13, height: 13)
-                    .shadow(color: .blue.opacity(0.6), radius: 2)
+                    .frame(width: 10, height: 10)
                     .padding(.top, 4)
                     .help("Unread notification — press space to dismiss")
             }
