@@ -37,23 +37,6 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    func post(_ notification: PRNotification) {
-        guard available else { return }
-        let content = UNMutableNotificationContent()
-        content.title = notification.repository
-        content.subtitle = notification.reason.replacingOccurrences(of: "_", with: " ")
-        content.body = notification.title
-        content.sound = .default
-        content.userInfo = ["url": notification.prURL.absoluteString]
-        // Thread id + timestamp: a re-updated thread notifies again.
-        let request = UNNotificationRequest(
-            identifier: "\(notification.id)-\(notification.updatedAt.timeIntervalSince1970)",
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request)
-    }
-
     /// Banner for a PR whose checks just finished. Scoped to dashboard PRs by
     /// the caller; not a GitHub notification thread, so it doesn't touch the
     /// unread dot/badge.
@@ -67,6 +50,55 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         content.userInfo = ["url": pullRequest.url.absoluteString]
         let request = UNNotificationRequest(
             identifier: "ci-\(pullRequest.id)-\(passed)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    /// Banner for a new comment or review on a dashboard PR. Derived locally
+    /// from the dashboard's activity, so it works regardless of the user's
+    /// GitHub notification routing.
+    func postActivity(for pullRequest: PullRequest, event: PullRequest.ActivityEvent) {
+        guard available else { return }
+        let action: String
+        switch event.kind {
+        case .comment:
+            action = "commented"
+        case .review(let state):
+            switch state {
+            case "APPROVED": action = "approved"
+            case "CHANGES_REQUESTED": action = "requested changes"
+            case "DISMISSED": action = "dismissed a review"
+            default: action = "reviewed"
+            }
+        }
+        let content = UNMutableNotificationContent()
+        content.title = pullRequest.repository
+        content.subtitle = "\(event.author) \(action)"
+        content.body = pullRequest.title
+        content.sound = .default
+        content.userInfo = ["url": pullRequest.url.absoluteString]
+        let request = UNNotificationRequest(
+            identifier: "activity-\(pullRequest.id)-\(event.createdAt.timeIntervalSince1970)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    /// Banner for a PR you were just asked to review. Derived from the review
+    /// pane entering the dashboard, not the notification inbox.
+    func postReviewRequest(for pullRequest: PullRequest) {
+        guard available else { return }
+        let content = UNMutableNotificationContent()
+        content.title = pullRequest.repository
+        content.subtitle = "Review requested"
+        content.body = pullRequest.title
+        content.sound = .default
+        content.userInfo = ["url": pullRequest.url.absoluteString]
+        let request = UNNotificationRequest(
+            identifier: "review-request-\(pullRequest.id)",
             content: content,
             trigger: nil
         )

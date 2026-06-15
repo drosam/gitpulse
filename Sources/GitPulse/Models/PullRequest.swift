@@ -1,6 +1,6 @@
 import Foundation
 
-struct PullRequest: Identifiable, Hashable, Decodable, Sendable {
+struct PullRequest: Identifiable, Hashable, Sendable {
     enum ReviewDecision: String, Decodable, Sendable {
         case approved = "APPROVED"
         case changesRequested = "CHANGES_REQUESTED"
@@ -22,6 +22,19 @@ struct PullRequest: Identifiable, Hashable, Decodable, Sendable {
         var color: String
     }
 
+    /// A comment or review on the PR, used to derive notifications locally
+    /// instead of relying on GitHub's (settings-dependent) notification inbox.
+    struct ActivityEvent: Hashable, Sendable {
+        enum Kind: Hashable, Sendable {
+            case comment
+            /// Raw review state: APPROVED / CHANGES_REQUESTED / COMMENTED / …
+            case review(state: String)
+        }
+        var kind: Kind
+        var author: String
+        var createdAt: Date
+    }
+
     var id: String
     var number: Int
     var title: String
@@ -33,6 +46,8 @@ struct PullRequest: Identifiable, Hashable, Decodable, Sendable {
     var reviewDecision: ReviewDecision?
     var checkState: CheckState?
     var labels: [Label]
+    /// Recent comments + reviews, newest last; drives local notifications.
+    var activity: [ActivityEvent]
     var commentCount: Int
     var additions: Int
     var deletions: Int

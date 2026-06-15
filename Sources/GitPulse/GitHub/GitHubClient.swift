@@ -46,6 +46,8 @@ struct GitHubClient: Sendable {
       author { login }
       labels(first: 10) { nodes { name color } }
       commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+      comments(last: 10) { nodes { author { login } createdAt } }
+      reviews(last: 10) { nodes { author { login } state submittedAt } }
     }
     """
 
@@ -131,6 +133,8 @@ private struct PRNode: Decodable {
     var author: Author?
     var labels: LabelConnection?
     var commits: CommitConnection?
+    var comments: CommentConnection?
+    var reviews: ReviewConnection?
 
     struct Repository: Decodable { var nameWithOwner: String }
     struct Author: Decodable { var login: String }
@@ -140,6 +144,28 @@ private struct PRNode: Decodable {
         struct Node: Decodable { var commit: Commit }
         struct Commit: Decodable { var statusCheckRollup: Rollup? }
         struct Rollup: Decodable { var state: PullRequest.CheckState? }
+    }
+    struct CommentConnection: Decodable {
+        var nodes: [Node?]
+        struct Node: Decodable { var author: Author?; var createdAt: Date? }
+    }
+    struct ReviewConnection: Decodable {
+        var nodes: [Node?]
+        struct Node: Decodable { var author: Author?; var state: String?; var submittedAt: Date? }
+    }
+
+    /// Comments + reviews flattened into activity events, sorted newest-last.
+    private var activityEvents: [PullRequest.ActivityEvent] {
+        var events: [PullRequest.ActivityEvent] = []
+        for node in comments?.nodes ?? [] {
+            guard let node, let login = node.author?.login, let at = node.createdAt else { continue }
+            events.append(.init(kind: .comment, author: login, createdAt: at))
+        }
+        for node in reviews?.nodes ?? [] {
+            guard let node, let login = node.author?.login, let at = node.submittedAt else { continue }
+            events.append(.init(kind: .review(state: node.state ?? ""), author: login, createdAt: at))
+        }
+        return events.sorted { $0.createdAt < $1.createdAt }
     }
 
     var pullRequest: PullRequest? {
@@ -158,6 +184,7 @@ private struct PRNode: Decodable {
             reviewDecision: reviewDecision,
             checkState: commits?.nodes.first??.commit.statusCheckRollup?.state,
             labels: labels?.nodes.compactMap { $0 } ?? [],
+            activity: activityEvents,
             commentCount: totalCommentsCount ?? 0,
             additions: additions ?? 0,
             deletions: deletions ?? 0,

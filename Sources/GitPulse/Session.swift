@@ -14,34 +14,42 @@ final class Session {
 
     private(set) var state: State = .signedOut
     private(set) var isRefreshing = false
-    /// Unread PR notifications from GitHub's notifications API.
-    private(set) var notifications: [PRNotification] = []
+    /// PR html URLs with unacknowledged activity (a new comment, review, or
+    /// review request). Drives the menubar dot, dock badge, and per-row dot.
+    /// Persisted, and cleared for a PR when the user opens it.
+    private var unreadURLs: Set<URL> = []
     private var token: String?
     private var autoRefreshTask: Task<Void, Never>?
-    private var notificationPollTask: Task<Void, Never>?
-    private var notificationsETag: String?
-    private var seenNotifications: [String: Date] = [:]
-    private var hasSeededNotifications = false
     /// Last seen head-commit check state per PR, to detect CI finishing.
     private var lastCheckState: [PullRequest.ID: PullRequest.CheckState] = [:]
     private var hasSeededChecks = false
+    /// Newest activity timestamp seen per PR, to detect new comments/reviews.
+    /// Persisted, so activity that arrives while the app is closed banners once
+    /// on the next launch. A PR with no entry yet seeds silently.
+    private var lastActivityAt: [PullRequest.ID: Date] = [:]
+    /// PRs currently asking for your review, to banner ones that newly appear.
+    private var knownReviewRequestIDs: Set<PullRequest.ID> = []
+    private var hasSeededReviewRequests = false
 
     private static let autoRefreshInterval: Duration = .seconds(60)
-    private static let seenKey = "seenNotifications"
-    private static let seededKey = "hasSeededNotifications"
+    private static let activityKey = "lastActivityAt"
+    private static let unreadKey = "unreadURLs"
 
     init() {
-        hasSeededNotifications = UserDefaults.standard.bool(forKey: Self.seededKey)
-        if let data = UserDefaults.standard.data(forKey: Self.seenKey),
+        if let data = UserDefaults.standard.data(forKey: Self.activityKey),
            let decoded = try? JSONDecoder().decode([String: Date].self, from: data) {
-            seenNotifications = decoded
+            lastActivityAt = decoded
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.unreadKey),
+           let decoded = try? JSONDecoder().decode(Set<URL>.self, from: data) {
+            unreadURLs = decoded
         }
     }
 
-    var hasUnread: Bool { !notifications.isEmpty }
+    var hasUnread: Bool { !unreadURLs.isEmpty }
 
-    /// PR html URLs with a pending notification, for the per-row dot.
-    var unreadPRURLs: Set<URL> { Set(notifications.map(\.prURL)) }
+    /// PR html URLs with unacknowledged activity, for the per-row dot.
+    var unreadPRURLs: Set<URL> { unreadURLs }
 
     func start() async {
         guard let resolved = TokenStore.resolve() else {
@@ -49,7 +57,6 @@ final class Session {
             return
         }
         token = resolved
-        startNotificationPolling()
         await refresh()
         startAutoRefresh()
     }
@@ -61,7 +68,7 @@ final class Session {
         defer { isRefreshing = false }
         do {
             let dashboard = try await GitHubClient(token: token).fetchDashboard()
-            detectFinishedChecks(in: dashboard)
+            processActivity(in: dashboard)
             state = .ready(dashboard)
         } catch {
             state = .failed(error.localizedDescription)
@@ -75,7 +82,6 @@ final class Session {
             let newToken = try await DeviceFlow.pollForToken(authorization)
             TokenStore.save(newToken)
             token = newToken
-            startNotificationPolling()
             await refresh()
             startAutoRefresh()
         } catch {
@@ -86,33 +92,25 @@ final class Session {
     func signOut() {
         autoRefreshTask?.cancel()
         autoRefreshTask = nil
-        notificationPollTask?.cancel()
-        notificationPollTask = nil
-        notificationsETag = nil
-        seenNotifications = [:]
-        hasSeededNotifications = false
-        UserDefaults.standard.removeObject(forKey: Self.seenKey)
-        UserDefaults.standard.removeObject(forKey: Self.seededKey)
-        notifications = []
+        lastActivityAt = [:]
+        lastCheckState = [:]
+        knownReviewRequestIDs = []
+        hasSeededReviewRequests = false
+        hasSeededChecks = false
+        unreadURLs = []
+        UserDefaults.standard.removeObject(forKey: Self.activityKey)
+        UserDefaults.standard.removeObject(forKey: Self.unreadKey)
         updateDockBadge()
         TokenStore.clear()
         token = nil
         state = .signedOut
     }
 
-    /// Called when the user opens a PR: clear its dot immediately and tell
-    /// GitHub the threads are read (best-effort; the next poll re-syncs).
+    /// Called when the user opens a PR: clear its unread mark.
     func markRead(prURL: URL) {
-        let matching = notifications.filter { $0.prURL == prURL }
-        guard !matching.isEmpty, let token else { return }
-        notifications.removeAll { $0.prURL == prURL }
+        guard unreadURLs.remove(prURL) != nil else { return }
         updateDockBadge()
-        let client = NotificationsClient(token: token)
-        Task {
-            for notification in matching {
-                await client.markRead(threadID: notification.id)
-            }
-        }
+        saveNotificationState()
     }
 
     // MARK: - Auto-refresh
@@ -133,15 +131,27 @@ final class Session {
     private func backgroundRefresh() async {
         guard let token else { return }
         if let dashboard = try? await GitHubClient(token: token).fetchDashboard() {
-            detectFinishedChecks(in: dashboard)
+            processActivity(in: dashboard)
             state = .ready(dashboard)
         }
     }
 
+    /// Derives all local notifications from the dashboard — CI results, new
+    /// comments/reviews, and new review requests — then prunes per-PR state for
+    /// PRs that have left the dashboard. Scoped to the PRs shown in the app, so
+    /// it never touches the whole-repo firehose and works regardless of the
+    /// user's GitHub notification routing.
+    private func processActivity(in dashboard: Dashboard) {
+        detectFinishedChecks(in: dashboard)
+        detectNewActivity(in: dashboard)
+        detectNewReviewRequests(in: dashboard)
+        pruneState(keeping: dashboard)
+        saveNotificationState()
+    }
+
     /// Posts a banner when a dashboard PR's checks transition to a finished
-    /// state (passed / failed). Scoped to the PRs shown in the app — your PRs
-    /// and review requests — never the whole-repo CI firehose. The first pass
-    /// after launch seeds silently so we don't blast banners for old results.
+    /// state (passed / failed). The first pass after launch seeds silently so
+    /// we don't blast banners for old results.
     private func detectFinishedChecks(in dashboard: Dashboard) {
         let prs = dashboard.myPRs + dashboard.reviewRequests
         for pr in prs {
@@ -151,65 +161,64 @@ final class Session {
             let finished = state == .success || state == .failure || state == .error
             guard hasSeededChecks, finished, state != previous else { continue }
             Notifier.shared.postCheckResult(for: pr, passed: state == .success)
+            unreadURLs.insert(pr.url)
         }
         hasSeededChecks = true
     }
 
-    // MARK: - Notifications
-
-    private func startNotificationPolling() {
-        notificationPollTask?.cancel()
-        notificationPollTask = Task { [weak self] in
-            while !Task.isCancelled {
-                let interval = await self?.pollNotifications() ?? 60
-                try? await Task.sleep(for: .seconds(interval))
+    /// Posts a banner for each comment or review newer than the last one we saw
+    /// on that PR (skipping your own). A PR with no recorded cursor seeds
+    /// silently — covers both first launch and a PR newly entering the app.
+    private func detectNewActivity(in dashboard: Dashboard) {
+        let prs = dashboard.myPRs + dashboard.reviewRequests
+        for pr in prs {
+            guard let newest = pr.activity.last?.createdAt else { continue }
+            if let cursor = lastActivityAt[pr.id] {
+                for event in pr.activity where event.createdAt > cursor && event.author != dashboard.viewer {
+                    Notifier.shared.postActivity(for: pr, event: event)
+                    unreadURLs.insert(pr.url)
+                }
             }
+            lastActivityAt[pr.id] = max(lastActivityAt[pr.id] ?? .distantPast, newest)
         }
     }
 
-    /// One poll; returns how many seconds to wait before the next one.
-    private func pollNotifications() async -> Int {
-        guard let token else { return 60 }
-        do {
-            let result = try await NotificationsClient(token: token).fetch(etag: notificationsETag)
-            notificationsETag = result.etag
-            if let fetched = result.notifications {
-                apply(fetched)
+    /// Posts a banner when a PR newly appears in the review-requested pane.
+    /// Settings-independent replacement for the inbox review notification.
+    private func detectNewReviewRequests(in dashboard: Dashboard) {
+        let ids = Set(dashboard.reviewRequests.map(\.id))
+        if hasSeededReviewRequests {
+            for pr in dashboard.reviewRequests where !knownReviewRequestIDs.contains(pr.id) {
+                Notifier.shared.postReviewRequest(for: pr)
+                unreadURLs.insert(pr.url)
             }
-            return max(result.pollInterval, 60)
-        } catch {
-            return 60 // transient failure: keep showing what we had
         }
+        knownReviewRequestIDs = ids
+        hasSeededReviewRequests = true
     }
 
-    private func apply(_ fetched: [PRNotification]) {
-        let fresh = fetched.filter { notification in
-            guard let seenAt = seenNotifications[notification.id] else { return true }
-            return notification.updatedAt > seenAt
-        }
-        // The first poll seeds silently — don't blast banners for old unread.
-        if hasSeededNotifications {
-            for notification in fresh {
-                Notifier.shared.post(notification)
-            }
-        }
-        hasSeededNotifications = true
-        for notification in fetched {
-            seenNotifications[notification.id] = notification.updatedAt
-        }
-        notifications = fetched
+    /// Drops per-PR tracking state for PRs no longer shown in the app, so the
+    /// maps don't grow without bound as PRs are merged/closed.
+    private func pruneState(keeping dashboard: Dashboard) {
+        let prs = dashboard.myPRs + dashboard.reviewRequests
+        let currentIDs = Set(prs.map(\.id))
+        let currentURLs = Set(prs.map(\.url))
+        lastCheckState = lastCheckState.filter { currentIDs.contains($0.key) }
+        lastActivityAt = lastActivityAt.filter { currentIDs.contains($0.key) }
+        unreadURLs = unreadURLs.filter { currentURLs.contains($0) }
         updateDockBadge()
-        saveNotificationState()
     }
 
     private func saveNotificationState() {
-        UserDefaults.standard.set(hasSeededNotifications, forKey: Self.seededKey)
-        if let data = try? JSONEncoder().encode(seenNotifications) {
-            UserDefaults.standard.set(data, forKey: Self.seenKey)
+        if let data = try? JSONEncoder().encode(lastActivityAt) {
+            UserDefaults.standard.set(data, forKey: Self.activityKey)
+        }
+        if let data = try? JSONEncoder().encode(unreadURLs) {
+            UserDefaults.standard.set(data, forKey: Self.unreadKey)
         }
     }
 
     private func updateDockBadge() {
-        NSApp.dockTile.badgeLabel = notifications.isEmpty ? nil : "\(notifications.count)"
+        NSApp.dockTile.badgeLabel = unreadURLs.isEmpty ? nil : "\(unreadURLs.count)"
     }
 }
