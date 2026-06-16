@@ -11,7 +11,7 @@ A small native macOS app that tracks your work on GitHub in one window:
 
 - Two-pane dashboard, refreshed automatically every 60 seconds (`⌘R` to refresh manually)
 - Click a row or press Return to open the selected PR in your browser
-- Keyboard navigation: arrow keys move between rows/panes, Space clears an unread dot, `H` hides the selected PR
+- Keyboard navigation: arrow keys move between rows/panes, Space clears an unread dot, `H` hides/restores the selected PR, `⌘H` toggles showing hidden PRs
 - Each row shows draft state, CI status (✓ / ✗ / running), head branch, labels, comment count, age, author, and review decision
 - **Notifications** — GitPulse detects useful PR activity from the dashboard:
   - macOS banners for new review requests, new comments/reviews, CI completion, merge-queue exits, and newly merged PRs
@@ -24,13 +24,17 @@ A small native macOS app that tracks your work on GitHub in one window:
   - Show/hide Dock badge count
   - Show/hide unread dots
   - Check all matching repositories or only selected `owner/repo` repositories
+  - Show hidden pull requests in lists
   - Restore hidden pull requests
 - Lives in the menu bar: closing the window hides the Dock icon, the app keeps polling in the background
 
 ## Hiding pull requests
 
 - Select a PR and press `H`, or right-click it and choose **Hide Pull Request**.
-- Hidden PRs disappear from the dashboard and no longer drive unread dots, Dock badges, or notifications.
+- Press `H` on a hidden PR, or right-click it and choose **Restore Pull Request**, to restore it.
+- Press `⌘H`, or use **Settings… → Hidden Pull Requests → Show hidden pull requests in lists**, to show/hide hidden PRs in the dashboard.
+- When shown, hidden PRs are dimmed and marked **Hidden**.
+- Hidden PRs can still show a row-level blue unread dot, but they do not drive the menu bar dot, Dock badge, notification banners, or sounds.
 - Restore one or all hidden PRs from **Settings… → Hidden Pull Requests**.
 
 ## Install
