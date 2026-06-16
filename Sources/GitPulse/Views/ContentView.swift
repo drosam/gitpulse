@@ -50,7 +50,8 @@ struct DashboardView: View {
             onRight: { switchTo(.review) },
             onReturn: openSelected,
             onSpace: dismissSelected,
-            onHide: hideSelected
+            onHide: toggleHideSelected,
+            onToggleHiddenVisibility: toggleHiddenVisibility
         ))
         .onAppear { selectFirstIfNeeded() }
         .toolbar {
@@ -139,13 +140,26 @@ struct DashboardView: View {
         session.markRead(prURL: pr.url)
     }
 
-    /// H hides the selected PR from the dashboard until restored in Settings.
-    private func hideSelected() {
+    /// H toggles whether the selected PR is hidden.
+    private func toggleHideSelected() {
         let prs = activePRs
         guard let index = prs.firstIndex(where: { $0.id == activeSelection }) else { return }
-        let nextPRs = prs.enumerated().filter { $0.offset != index }.map(\.element)
-        activeSelection = nextPRs.indices.contains(index) ? nextPRs[index].id : nextPRs.last?.id
-        session.hide(prs[index])
+        let pr = prs[index]
+        if session.hiddenPRURLs.contains(pr.url) {
+            Task { await session.unhide(url: pr.url) }
+        } else {
+            if !settings.showHiddenPullRequests {
+                let nextPRs = prs.enumerated().filter { $0.offset != index }.map(\.element)
+                activeSelection = nextPRs.indices.contains(index) ? nextPRs[index].id : nextPRs.last?.id
+            }
+            session.hide(pr)
+        }
+    }
+
+    /// Command-H toggles showing hidden pull requests in the dashboard.
+    private func toggleHiddenVisibility() {
+        settings.showHiddenPullRequests.toggle()
+        Task { await session.applySettingsChanged(refresh: true) }
     }
 
     private func selectFirstIfNeeded() {

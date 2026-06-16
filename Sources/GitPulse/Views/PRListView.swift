@@ -384,6 +384,7 @@ struct KeyNavigator: NSViewRepresentable {
     var onReturn: () -> Void
     var onSpace: () -> Void
     var onHide: () -> Void
+    var onToggleHiddenVisibility: () -> Void
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
@@ -399,7 +400,13 @@ struct KeyNavigator: NSViewRepresentable {
                 case 124: coordinator.onRight(); consume = true   // Right
                 case 36, 76: coordinator.onReturn(); consume = true  // Return / Enter
                 case 49: coordinator.onSpace(); consume = true  // Space
-                case 4: coordinator.onHide(); consume = true  // H
+                case 4:
+                    if event.modifierFlags.contains(.command) {
+                        coordinator.onToggleHiddenVisibility()
+                    } else {
+                        coordinator.onHide()
+                    }
+                    consume = true  // H / Command-H
                 default: break
                 }
             }
@@ -416,10 +423,11 @@ struct KeyNavigator: NSViewRepresentable {
         context.coordinator.onReturn = onReturn
         context.coordinator.onSpace = onSpace
         context.coordinator.onHide = onHide
+        context.coordinator.onToggleHiddenVisibility = onToggleHiddenVisibility
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onUp: onUp, onDown: onDown, onLeft: onLeft, onRight: onRight, onReturn: onReturn, onSpace: onSpace, onHide: onHide)
+        Coordinator(onUp: onUp, onDown: onDown, onLeft: onLeft, onRight: onRight, onReturn: onReturn, onSpace: onSpace, onHide: onHide, onToggleHiddenVisibility: onToggleHiddenVisibility)
     }
 
     class Coordinator {
@@ -430,10 +438,11 @@ struct KeyNavigator: NSViewRepresentable {
         var onReturn: () -> Void
         var onSpace: () -> Void
         var onHide: () -> Void
+        var onToggleHiddenVisibility: () -> Void
         var monitor: Any?
 
-        init(onUp: @escaping () -> Void, onDown: @escaping () -> Void, onLeft: @escaping () -> Void, onRight: @escaping () -> Void, onReturn: @escaping () -> Void, onSpace: @escaping () -> Void, onHide: @escaping () -> Void) {
-            self.onUp = onUp; self.onDown = onDown; self.onLeft = onLeft; self.onRight = onRight; self.onReturn = onReturn; self.onSpace = onSpace; self.onHide = onHide
+        init(onUp: @escaping () -> Void, onDown: @escaping () -> Void, onLeft: @escaping () -> Void, onRight: @escaping () -> Void, onReturn: @escaping () -> Void, onSpace: @escaping () -> Void, onHide: @escaping () -> Void, onToggleHiddenVisibility: @escaping () -> Void) {
+            self.onUp = onUp; self.onDown = onDown; self.onLeft = onLeft; self.onRight = onRight; self.onReturn = onReturn; self.onSpace = onSpace; self.onHide = onHide; self.onToggleHiddenVisibility = onToggleHiddenVisibility
         }
 
         deinit { monitor.map { NSEvent.removeMonitor($0) } }
