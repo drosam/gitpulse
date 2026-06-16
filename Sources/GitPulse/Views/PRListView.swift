@@ -59,14 +59,6 @@ struct PRRow: View {
                         .font(.system(size: 14, weight: .semibold))
                         .lineLimit(1)
                     checkIcon
-                    if isHidden {
-                        Text("Hidden")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.secondary.opacity(0.15), in: Capsule())
-                    }
                     ForEach(pullRequest.labels.prefix(3), id: \.self) { label in
                         LabelPill(label: label)
                     }
@@ -98,6 +90,12 @@ struct PRRow: View {
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                         mergeQueuePill
+                    }
+                    if isHidden {
+                        Text("•")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                        hiddenPill
                     }
                 }
             }
@@ -216,6 +214,16 @@ struct PRRow: View {
             .background(Self.queuedGold.opacity(0.15), in: Capsule())
             .help("Waiting in the merge queue")
         }
+    }
+
+    private var hiddenPill: some View {
+        Text("Hidden")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.secondary.opacity(0.15), in: Capsule())
+            .help("Hidden pull request")
     }
 
     private var caption: String {
