@@ -14,7 +14,7 @@ A small native macOS app that tracks your work on GitHub in one window:
 - Keyboard navigation: arrow keys move between rows/panes, Space clears an unread dot, `⌘C` copies the selected PR URL, `H` hides/restores the selected PR, `⌘H` toggles showing hidden PRs
 - Each row shows draft state, merge-queue status, CI status (✓ / ✗ / running), head branch, labels, comment count, age, author, and review decision
 - **Notifications** — GitPulse detects useful PR activity from the dashboard:
-  - macOS banners for new review requests, new comments/reviews, CI completion, merge-queue exits, and newly merged PRs
+  - macOS banners for new review requests, new comments/reviews, CI completion, merge-queue exits, and newly merged PRs you authored or were assigned to
   - Optional sound
   - Optional blue unread dots in rows and the menu bar
   - Optional Dock badge count while anything is unread

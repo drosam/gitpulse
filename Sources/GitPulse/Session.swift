@@ -305,8 +305,8 @@ final class Session {
         hasSeededMergeQueue = true
     }
 
-    /// Posts a banner for each newly merged PR you authored. Sourced from the
-    /// merged search since merged PRs leave the open panes; no unread mark
+    /// Posts a banner for each newly merged PR you authored or were assigned to.
+    /// Sourced from merged searches since merged PRs leave the open panes; no unread mark
     /// because there's no row to clear. Seeds silently only on a fresh install.
     private func detectMergedPRs(in dashboard: Dashboard) {
         let ids = Set(dashboard.recentlyMerged.map(\.id))

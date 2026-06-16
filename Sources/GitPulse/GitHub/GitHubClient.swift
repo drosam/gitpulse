@@ -4,8 +4,9 @@ struct Dashboard: Sendable {
     var viewer: String
     var myPRs: [PullRequest]
     var reviewRequests: [PullRequest]
-    /// Recently merged PRs you authored. Not shown in any pane — used only to
-    /// banner a merge once, since merged PRs drop out of the open searches.
+    /// Recently merged PRs you authored or were assigned to. Not shown in any
+    /// pane — used only to banner a merge once, since merged PRs drop out of the
+    /// open searches.
     var recentlyMerged: [PullRequest]
 }
 
@@ -49,7 +50,10 @@ struct GitHubClient: Sendable {
           reviews: search(query: "\(scoped("is:pr is:open review-requested:@me archived:false"))", type: ISSUE, first: 50) {
             nodes { ...prFields }
           }
-          merged: search(query: "\(scoped("is:pr is:merged author:@me archived:false sort:updated-desc"))", type: ISSUE, first: 20) {
+          mergedAuthored: search(query: "\(scoped("is:pr is:merged author:@me archived:false sort:updated-desc"))", type: ISSUE, first: 20) {
+            nodes { ...prFields }
+          }
+          mergedAssigned: search(query: "\(scoped("is:pr is:merged assignee:@me archived:false sort:updated-desc"))", type: ISSUE, first: 20) {
             nodes { ...prFields }
           }
         }
@@ -98,11 +102,17 @@ struct GitHubClient: Sendable {
         let myPRs = (authored + assigned.filter { seen.insert($0.id).inserted })
             .sorted { $0.updatedAt > $1.updatedAt }
 
+        let mergedAuthored = payload.mergedAuthored.nodes.compactMap { $0?.pullRequest }
+        let mergedAssigned = payload.mergedAssigned.nodes.compactMap { $0?.pullRequest }
+        seen = Set(mergedAuthored.map(\.id))
+        let recentlyMerged = (mergedAuthored + mergedAssigned.filter { seen.insert($0.id).inserted })
+            .sorted { $0.updatedAt > $1.updatedAt }
+
         return Dashboard(
             viewer: payload.viewer.login,
             myPRs: myPRs,
             reviewRequests: payload.reviews.nodes.compactMap { $0?.pullRequest },
-            recentlyMerged: payload.merged.nodes.compactMap { $0?.pullRequest }
+            recentlyMerged: recentlyMerged
         )
     }
 }
@@ -123,7 +133,8 @@ private struct Payload: Decodable {
     var mine: SearchResult
     var assigned: SearchResult
     var reviews: SearchResult
-    var merged: SearchResult
+    var mergedAuthored: SearchResult
+    var mergedAssigned: SearchResult
 }
 
 private struct Viewer: Decodable {
