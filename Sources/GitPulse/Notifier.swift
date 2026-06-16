@@ -13,6 +13,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     static let shared = Notifier()
 
     @ObservationIgnored private let available = Bundle.main.bundleIdentifier != nil
+    @ObservationIgnored private let settings = AppSettings.shared
 
     /// True when the user has denied notification permission, so banners are
     /// silently dropped by the system. Surfaced in the UI so it isn't a mystery.
@@ -41,12 +42,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// the caller; not a GitHub notification thread, so it doesn't touch the
     /// unread dot/badge.
     func postCheckResult(for pullRequest: PullRequest, passed: Bool) {
-        guard available else { return }
+        guard available, settings.showNotificationBanners else { return }
         let content = UNMutableNotificationContent()
         content.title = pullRequest.repository
         content.subtitle = passed ? "Checks passed" : "Checks failed"
         content.body = pullRequest.title
-        content.sound = .default
+        content.sound = settings.playNotificationSounds ? .default : nil
         content.userInfo = ["url": pullRequest.url.absoluteString]
         let request = UNNotificationRequest(
             identifier: "ci-\(pullRequest.id)-\(passed)",
@@ -60,7 +61,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// from the dashboard's activity, so it works regardless of the user's
     /// GitHub notification routing.
     func postActivity(for pullRequest: PullRequest, event: PullRequest.ActivityEvent) {
-        guard available else { return }
+        guard available, settings.showNotificationBanners else { return }
         let action: String
         switch event.kind {
         case .comment:
@@ -77,7 +78,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         content.title = pullRequest.repository
         content.subtitle = "\(event.author) \(action)"
         content.body = pullRequest.title
-        content.sound = .default
+        content.sound = settings.playNotificationSounds ? .default : nil
         content.userInfo = ["url": pullRequest.url.absoluteString]
         let request = UNNotificationRequest(
             identifier: "activity-\(pullRequest.id)-\(event.createdAt.timeIntervalSince1970)",
@@ -90,12 +91,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// Banner for one of your PRs that just merged. Derived from the merged
     /// search, not the inbox; the PR has left the open panes by now.
     func postMerged(for pullRequest: PullRequest) {
-        guard available else { return }
+        guard available, settings.showNotificationBanners else { return }
         let content = UNMutableNotificationContent()
         content.title = pullRequest.repository
         content.subtitle = "Merged"
         content.body = pullRequest.title
-        content.sound = .default
+        content.sound = settings.playNotificationSounds ? .default : nil
         content.userInfo = ["url": pullRequest.url.absoluteString]
         let request = UNNotificationRequest(
             identifier: "merged-\(pullRequest.id)",
@@ -108,12 +109,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// Banner for a PR that dropped out of the merge queue while still open
     /// (kicked for a conflict, failed required check, base moved, manual remove).
     func postMergeQueueExit(for pullRequest: PullRequest) {
-        guard available else { return }
+        guard available, settings.showNotificationBanners else { return }
         let content = UNMutableNotificationContent()
         content.title = pullRequest.repository
         content.subtitle = "Removed from the merge queue"
         content.body = pullRequest.title
-        content.sound = .default
+        content.sound = settings.playNotificationSounds ? .default : nil
         content.userInfo = ["url": pullRequest.url.absoluteString]
         let request = UNNotificationRequest(
             identifier: "queue-exit-\(pullRequest.id)-\(pullRequest.updatedAt.timeIntervalSince1970)",
@@ -126,12 +127,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// Banner for a PR you were just asked to review. Derived from the review
     /// pane entering the dashboard, not the notification inbox.
     func postReviewRequest(for pullRequest: PullRequest) {
-        guard available else { return }
+        guard available, settings.showNotificationBanners else { return }
         let content = UNMutableNotificationContent()
         content.title = pullRequest.repository
         content.subtitle = "Review requested"
         content.body = pullRequest.title
-        content.sound = .default
+        content.sound = settings.playNotificationSounds ? .default : nil
         content.userInfo = ["url": pullRequest.url.absoluteString]
         let request = UNNotificationRequest(
             identifier: "review-request-\(pullRequest.id)",
@@ -145,7 +146,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound]
+        await MainActor.run {
+            var options: UNNotificationPresentationOptions = []
+            if settings.showNotificationBanners { options.insert(.banner) }
+            if settings.playNotificationSounds { options.insert(.sound) }
+            return options
+        }
     }
 
     nonisolated func userNotificationCenter(

@@ -1,0 +1,77 @@
+import Foundation
+import Observation
+
+@Observable
+@MainActor
+final class AppSettings {
+    static let shared = AppSettings()
+
+    enum RepositoryScope: String, CaseIterable, Identifiable {
+        case all
+        case selected
+
+        var id: String { rawValue }
+    }
+
+    var showNotificationBanners: Bool {
+        didSet { UserDefaults.standard.set(showNotificationBanners, forKey: Self.showNotificationBannersKey) }
+    }
+
+    var playNotificationSounds: Bool {
+        didSet { UserDefaults.standard.set(playNotificationSounds, forKey: Self.playNotificationSoundsKey) }
+    }
+
+    var showDockBadge: Bool {
+        didSet { UserDefaults.standard.set(showDockBadge, forKey: Self.showDockBadgeKey) }
+    }
+
+    var showUnreadDots: Bool {
+        didSet { UserDefaults.standard.set(showUnreadDots, forKey: Self.showUnreadDotsKey) }
+    }
+
+    var repositoryScope: RepositoryScope {
+        didSet { UserDefaults.standard.set(repositoryScope.rawValue, forKey: Self.repositoryScopeKey) }
+    }
+
+    /// Newline or comma separated `owner/name` repository names.
+    var selectedRepositoriesText: String {
+        didSet { UserDefaults.standard.set(selectedRepositoriesText, forKey: Self.selectedRepositoriesKey) }
+    }
+
+    var selectedRepositories: [String] {
+        selectedRepositoriesText
+            .split { $0 == "\n" || $0 == "," || $0 == " " || $0 == "\t" }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter(Self.isValidRepository)
+    }
+
+    var activeRepositories: [String] {
+        repositoryScope == .selected ? selectedRepositories : []
+    }
+
+    private static let showNotificationBannersKey = "settings.showNotificationBanners"
+    private static let playNotificationSoundsKey = "settings.playNotificationSounds"
+    private static let showDockBadgeKey = "settings.showDockBadge"
+    private static let showUnreadDotsKey = "settings.showUnreadDots"
+    private static let repositoryScopeKey = "settings.repositoryScope"
+    private static let selectedRepositoriesKey = "settings.selectedRepositories"
+
+    private static func isValidRepository(_ repository: String) -> Bool {
+        let parts = repository.split(separator: "/")
+        guard parts.count == 2 else { return false }
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-")
+        return parts.allSatisfy { part in
+            !part.isEmpty && part.unicodeScalars.allSatisfy { allowed.contains($0) }
+        }
+    }
+
+    private init() {
+        let defaults = UserDefaults.standard
+        showNotificationBanners = defaults.object(forKey: Self.showNotificationBannersKey) as? Bool ?? true
+        playNotificationSounds = defaults.object(forKey: Self.playNotificationSoundsKey) as? Bool ?? true
+        showDockBadge = defaults.object(forKey: Self.showDockBadgeKey) as? Bool ?? true
+        showUnreadDots = defaults.object(forKey: Self.showUnreadDotsKey) as? Bool ?? true
+        repositoryScope = RepositoryScope(rawValue: defaults.string(forKey: Self.repositoryScopeKey) ?? "") ?? .all
+        selectedRepositoriesText = defaults.string(forKey: Self.selectedRepositoriesKey) ?? ""
+    }
+}

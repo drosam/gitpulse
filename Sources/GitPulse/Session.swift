@@ -19,6 +19,7 @@ final class Session {
     /// Persisted, and cleared for a PR when the user opens it.
     private var unreadURLs: Set<URL> = []
     private var token: String?
+    private let settings = AppSettings.shared
     private var autoRefreshTask: Task<Void, Never>?
     /// Last seen head-commit check state per PR, to detect CI finishing.
     private var lastCheckState: [PullRequest.ID: PullRequest.CheckState] = [:]
@@ -83,7 +84,7 @@ final class Session {
         isRefreshing = true
         defer { isRefreshing = false }
         do {
-            let dashboard = try await GitHubClient(token: token).fetchDashboard()
+            let dashboard = try await GitHubClient(token: token, repositories: settings.activeRepositories).fetchDashboard()
             processActivity(in: dashboard)
             state = .ready(dashboard)
         } catch {
@@ -134,6 +135,13 @@ final class Session {
         saveNotificationState()
     }
 
+    func applySettingsChanged(refresh: Bool = false) async {
+        updateDockBadge()
+        if refresh {
+            await self.refresh()
+        }
+    }
+
     // MARK: - Auto-refresh
 
     private func startAutoRefresh() {
@@ -151,7 +159,7 @@ final class Session {
     /// so a transient network error never replaces data with an error screen.
     private func backgroundRefresh() async {
         guard let token else { return }
-        if let dashboard = try? await GitHubClient(token: token).fetchDashboard() {
+        if let dashboard = try? await GitHubClient(token: token, repositories: settings.activeRepositories).fetchDashboard() {
             processActivity(in: dashboard)
             state = .ready(dashboard)
         }
@@ -275,6 +283,6 @@ final class Session {
     }
 
     private func updateDockBadge() {
-        NSApp.dockTile.badgeLabel = unreadURLs.isEmpty ? nil : "\(unreadURLs.count)"
+        NSApp.dockTile.badgeLabel = settings.showDockBadge && !unreadURLs.isEmpty ? "\(unreadURLs.count)" : nil
     }
 }

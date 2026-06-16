@@ -4,11 +4,13 @@ import SwiftUI
 struct GitPulseApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var session = Session()
+    @State private var settings = AppSettings.shared
 
     var body: some Scene {
         WindowGroup(id: "main") {
             ContentView()
                 .environment(session)
+                .environment(settings)
         }
         .windowStyle(.automatic)
         .commands {
@@ -20,13 +22,19 @@ struct GitPulseApp: App {
             }
         }
 
+        Settings {
+            SettingsView()
+                .environment(session)
+                .environment(settings)
+        }
+
         MenuBarExtra {
             MenuBarMenu()
         } label: {
             // White ring + blue inner dot = pending; hollow ring = clear.
             // Pending uses a non-template NSImage so the menu bar keeps its
             // colour instead of flattening it to monochrome (which hid it).
-            if session.hasUnread {
+            if settings.showUnreadDots && session.hasUnread {
                 Image(nsImage: Self.unreadIcon)
             } else {
                 Image(systemName: "circle")
@@ -66,6 +74,7 @@ struct GitPulseApp: App {
 
 struct MenuBarMenu: View {
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         Button("Open GitPulse") {
@@ -73,6 +82,12 @@ struct MenuBarMenu: View {
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }
+        Button("Settings…") {
+            NSApp.setActivationPolicy(.regular)
+            openSettings()
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        .keyboardShortcut(",", modifiers: .command)
         Divider()
         Button("Quit GitPulse") {
             NSApp.terminate(nil)

@@ -25,45 +25,55 @@ enum GitHubError: LocalizedError {
 
 struct GitHubClient: Sendable {
     var token: String
+    var repositories: [String] = []
 
     private static let endpoint = URL(string: "https://api.github.com/graphql")!
 
-    private static let dashboardQuery = """
-    query Dashboard {
-      viewer { login }
-      mine: search(query: "is:pr is:open author:@me archived:false", type: ISSUE, first: 50) {
-        nodes { ...prFields }
-      }
-      assigned: search(query: "is:pr is:open assignee:@me archived:false", type: ISSUE, first: 50) {
-        nodes { ...prFields }
-      }
-      reviews: search(query: "is:pr is:open review-requested:@me archived:false", type: ISSUE, first: 50) {
-        nodes { ...prFields }
-      }
-      merged: search(query: "is:pr is:merged author:@me archived:false sort:updated-desc", type: ISSUE, first: 20) {
-        nodes { ...prFields }
-      }
+    private var dashboardQuery: String {
+        let repoFilter = repositories
+            .map { "repo:\($0)" }
+            .joined(separator: " ")
+        let scoped: (String) -> String = { query in
+            repoFilter.isEmpty ? query : "\(query) \(repoFilter)"
+        }
+
+        return """
+        query Dashboard {
+          viewer { login }
+          mine: search(query: "\(scoped("is:pr is:open author:@me archived:false"))", type: ISSUE, first: 50) {
+            nodes { ...prFields }
+          }
+          assigned: search(query: "\(scoped("is:pr is:open assignee:@me archived:false"))", type: ISSUE, first: 50) {
+            nodes { ...prFields }
+          }
+          reviews: search(query: "\(scoped("is:pr is:open review-requested:@me archived:false"))", type: ISSUE, first: 50) {
+            nodes { ...prFields }
+          }
+          merged: search(query: "\(scoped("is:pr is:merged author:@me archived:false sort:updated-desc"))", type: ISSUE, first: 20) {
+            nodes { ...prFields }
+          }
+        }
+        fragment prFields on PullRequest {
+          id number title url isDraft reviewDecision additions deletions createdAt updatedAt
+          headRefName
+          totalCommentsCount
+          repository { nameWithOwner }
+          author { login }
+          mergeQueueEntry { state }
+          labels(first: 10) { nodes { name color } }
+          commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+          comments(last: 10) { nodes { author { login } createdAt } }
+          reviews(last: 10) { nodes { author { login } state submittedAt } }
+        }
+        """
     }
-    fragment prFields on PullRequest {
-      id number title url isDraft reviewDecision additions deletions createdAt updatedAt
-      headRefName
-      totalCommentsCount
-      repository { nameWithOwner }
-      author { login }
-      mergeQueueEntry { state }
-      labels(first: 10) { nodes { name color } }
-      commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
-      comments(last: 10) { nodes { author { login } createdAt } }
-      reviews(last: 10) { nodes { author { login } state submittedAt } }
-    }
-    """
 
     func fetchDashboard() async throws -> Dashboard {
         var request = URLRequest(url: Self.endpoint)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(["query": Self.dashboardQuery])
+        request.httpBody = try JSONEncoder().encode(["query": dashboardQuery])
 
         let (data, response) = try await URLSession.shared.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0

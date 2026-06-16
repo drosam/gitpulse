@@ -28,6 +28,7 @@ struct DashboardView: View {
     enum Pane { case mine, review }
 
     @Environment(Session.self) private var session
+    @Environment(AppSettings.self) private var settings
     @Environment(\.openURL) private var openURL
     @State private var activePane: Pane = .mine
     @State private var mySelectedID: PullRequest.ID?
@@ -73,7 +74,7 @@ struct DashboardView: View {
                 title: "My pull requests",
                 systemImage: "arrow.triangle.pull",
                 pullRequests: dashboard.myPRs,
-                unreadURLs: session.unreadPRURLs,
+                unreadURLs: settings.showUnreadDots ? session.unreadPRURLs : [],
                 isActive: activePane == .mine,
                 selectedID: Binding(
                     get: { activePane == .mine ? mySelectedID : nil },
@@ -84,7 +85,7 @@ struct DashboardView: View {
                 title: "Review requested",
                 systemImage: "eye",
                 pullRequests: dashboard.reviewRequests,
-                unreadURLs: session.unreadPRURLs,
+                unreadURLs: settings.showUnreadDots ? session.unreadPRURLs : [],
                 isActive: activePane == .review,
                 selectedID: Binding(
                     get: { activePane == .review ? reviewSelectedID : nil },
