@@ -78,11 +78,15 @@ final class Session {
         }
     }
 
-    var hasUnread: Bool { !unreadURLs.isEmpty }
+    var hasUnread: Bool { !visibleUnreadURLs.isEmpty }
 
     /// PR html URLs with unacknowledged activity, for the per-row dot.
     var unreadPRURLs: Set<URL> { unreadURLs }
     var hiddenPRURLs: Set<URL> { Set(hiddenPullRequests.map(\.url)) }
+
+    private var visibleUnreadURLs: Set<URL> {
+        unreadURLs.subtracting(hiddenPRURLs)
+    }
 
     func start() async {
         guard let resolved = TokenStore.resolve() else {
@@ -101,7 +105,7 @@ final class Session {
         defer { isRefreshing = false }
         do {
             let dashboard = try await GitHubClient(token: token, repositories: settings.activeRepositories).fetchDashboard()
-            processActivity(in: filterHidden(dashboard))
+            processActivity(in: dashboard)
             state = .ready(displayDashboard(dashboard))
         } catch {
             state = .failed(error.localizedDescription)
@@ -209,7 +213,7 @@ final class Session {
     private func backgroundRefresh() async {
         guard let token else { return }
         if let dashboard = try? await GitHubClient(token: token, repositories: settings.activeRepositories).fetchDashboard() {
-            processActivity(in: filterHidden(dashboard))
+            processActivity(in: dashboard)
             state = .ready(displayDashboard(dashboard))
         }
     }
@@ -240,8 +244,10 @@ final class Session {
             lastCheckState[pr.id] = state
             let finished = state == .success || state == .failure || state == .error
             guard hasSeededChecks, finished, state != previous else { continue }
-            Notifier.shared.postCheckResult(for: pr, passed: state == .success)
-            unreadURLs.insert(pr.url)
+            recordUnread(pr)
+            if !isHidden(pr) {
+                Notifier.shared.postCheckResult(for: pr, passed: state == .success)
+            }
         }
         hasSeededChecks = true
     }
@@ -255,8 +261,10 @@ final class Session {
             guard let newest = pr.activity.last?.createdAt else { continue }
             if let cursor = lastActivityAt[pr.id] {
                 for event in pr.activity where event.createdAt > cursor && event.author != dashboard.viewer {
-                    Notifier.shared.postActivity(for: pr, event: event)
-                    unreadURLs.insert(pr.url)
+                    recordUnread(pr)
+                    if !isHidden(pr) {
+                        Notifier.shared.postActivity(for: pr, event: event)
+                    }
                 }
             }
             lastActivityAt[pr.id] = max(lastActivityAt[pr.id] ?? .distantPast, newest)
@@ -269,8 +277,10 @@ final class Session {
         let ids = Set(dashboard.reviewRequests.map(\.id))
         if hasSeededReviewRequests {
             for pr in dashboard.reviewRequests where !knownReviewRequestIDs.contains(pr.id) {
-                Notifier.shared.postReviewRequest(for: pr)
-                unreadURLs.insert(pr.url)
+                recordUnread(pr)
+                if !isHidden(pr) {
+                    Notifier.shared.postReviewRequest(for: pr)
+                }
             }
         }
         knownReviewRequestIDs = ids
@@ -285,8 +295,10 @@ final class Session {
         let prs = dashboard.myPRs + dashboard.reviewRequests
         if hasSeededMergeQueue {
             for pr in prs where prsInMergeQueue.contains(pr.id) && pr.mergeQueueState == nil {
-                Notifier.shared.postMergeQueueExit(for: pr)
-                unreadURLs.insert(pr.url)
+                recordUnread(pr)
+                if !isHidden(pr) {
+                    Notifier.shared.postMergeQueueExit(for: pr)
+                }
             }
         }
         prsInMergeQueue = Set(prs.filter { $0.mergeQueueState != nil }.map(\.id))
@@ -299,7 +311,7 @@ final class Session {
     private func detectMergedPRs(in dashboard: Dashboard) {
         let ids = Set(dashboard.recentlyMerged.map(\.id))
         if hasSeededMerged {
-            for pr in dashboard.recentlyMerged where !knownMergedIDs.contains(pr.id) {
+            for pr in dashboard.recentlyMerged where !knownMergedIDs.contains(pr.id) && !isHidden(pr) {
                 Notifier.shared.postMerged(for: pr)
             }
         }
@@ -317,6 +329,14 @@ final class Session {
         lastActivityAt = lastActivityAt.filter { currentIDs.contains($0.key) }
         unreadURLs = unreadURLs.filter { currentURLs.contains($0) }
         updateDockBadge()
+    }
+
+    private func isHidden(_ pullRequest: PullRequest) -> Bool {
+        hiddenPRURLs.contains(pullRequest.url)
+    }
+
+    private func recordUnread(_ pullRequest: PullRequest) {
+        unreadURLs.insert(pullRequest.url)
     }
 
     private func applyHiddenDisplayToCurrentState() {
@@ -357,6 +377,6 @@ final class Session {
     }
 
     private func updateDockBadge() {
-        NSApp.dockTile.badgeLabel = settings.showDockBadge && !unreadURLs.isEmpty ? "\(unreadURLs.count)" : nil
+        NSApp.dockTile.badgeLabel = settings.showDockBadge && !visibleUnreadURLs.isEmpty ? "\(visibleUnreadURLs.count)" : nil
     }
 }

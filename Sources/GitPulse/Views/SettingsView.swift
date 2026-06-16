@@ -46,7 +46,7 @@ struct SettingsView: View {
 
             Section("Hidden Pull Requests") {
                 Toggle("Show hidden pull requests in lists", isOn: $settings.showHiddenPullRequests)
-                Text("Shown hidden pull requests stay dimmed and marked Hidden. They still do not count for unread dots, Dock badges, or notifications.")
+                Text("Shown hidden pull requests stay dimmed and marked Hidden. Their row can show a blue unread dot, but they do not affect the menu bar dot, Dock badge, sounds, or banners.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
