@@ -59,3 +59,9 @@ struct PullRequest: Identifiable, Hashable, Sendable {
     var createdAt: Date
     var updatedAt: Date
 }
+
+extension String {
+    var githubMention: String {
+        hasPrefix("@") ? self : "@\(self)"
+    }
+}

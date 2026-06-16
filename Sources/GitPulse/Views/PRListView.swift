@@ -230,7 +230,7 @@ struct PRRow: View {
         var parts = [
             "\(pullRequest.repository) #\(pullRequest.number)",
             "opened \(pullRequest.createdAt.formatted(.relative(presentation: .named)))",
-            "by \(pullRequest.author)",
+            "by \(pullRequest.author.githubMention)",
         ]
         if let status = reviewStatus {
             parts.append("• \(status)")

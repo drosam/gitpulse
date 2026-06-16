@@ -83,7 +83,7 @@ struct DashboardView: View {
             }
         }
         .navigationTitle("GitPulse")
-        .navigationSubtitle(dashboard.viewer)
+        .navigationSubtitle(dashboard.viewer.githubMention)
     }
 
     private var paneSplit: some View {

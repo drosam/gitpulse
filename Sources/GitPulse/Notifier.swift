@@ -76,7 +76,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         }
         let content = UNMutableNotificationContent()
         content.title = pullRequest.repository
-        content.subtitle = "\(event.author) \(action)"
+        content.subtitle = "\(event.author.githubMention) \(action)"
         content.body = pullRequest.title
         content.sound = settings.playNotificationSounds ? .default : nil
         content.userInfo = ["url": pullRequest.url.absoluteString]
