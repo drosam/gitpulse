@@ -345,7 +345,19 @@ final class Session {
     }
 
     private func displayDashboard(_ dashboard: Dashboard) -> Dashboard {
-        settings.showHiddenPullRequests ? dashboard : filterHidden(dashboard)
+        if settings.showHiddenPullRequests {
+            return Dashboard(
+                viewer: dashboard.viewer,
+                myPRs: sortHiddenLast(dashboard.myPRs),
+                reviewRequests: sortHiddenLast(dashboard.reviewRequests),
+                recentlyMerged: dashboard.recentlyMerged
+            )
+        }
+        return filterHidden(dashboard)
+    }
+
+    private func sortHiddenLast(_ pullRequests: [PullRequest]) -> [PullRequest] {
+        pullRequests.filter { !isHidden($0) } + pullRequests.filter { isHidden($0) }
     }
 
     private func filterHidden(_ dashboard: Dashboard) -> Dashboard {

@@ -33,16 +33,31 @@ struct DashboardView: View {
     @State private var activePane: Pane = .mine
     @State private var mySelectedID: PullRequest.ID?
     @State private var reviewSelectedID: PullRequest.ID?
+    @State private var toastMessage: String?
     var dashboard: Dashboard
 
     var body: some View {
-        VStack(spacing: 0) {
-            if Notifier.shared.authorizationDenied {
-                NotificationPermissionBanner()
-                Divider()
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                if Notifier.shared.authorizationDenied {
+                    NotificationPermissionBanner()
+                    Divider()
+                }
+                paneSplit
             }
-            paneSplit
+
+            if let toastMessage {
+                Text(toastMessage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.black.opacity(0.78), in: Capsule())
+                    .padding(.bottom, 14)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
         }
+        .animation(.easeOut(duration: 0.18), value: toastMessage)
         .background(KeyNavigator(
             onUp: { move(-1) },
             onDown: { move(1) },
@@ -51,7 +66,8 @@ struct DashboardView: View {
             onReturn: openSelected,
             onSpace: dismissSelected,
             onHide: toggleHideSelected,
-            onToggleHiddenVisibility: toggleHiddenVisibility
+            onToggleHiddenVisibility: toggleHiddenVisibility,
+            onCopy: copySelectedURL
         ))
         .onAppear { selectFirstIfNeeded() }
         .toolbar {
@@ -132,6 +148,23 @@ struct DashboardView: View {
         guard let pr = activePRs.first(where: { $0.id == activeSelection }) else { return }
         openURL(pr.url)
         session.markRead(prURL: pr.url)
+    }
+
+    private func copySelectedURL() {
+        guard let pr = activePRs.first(where: { $0.id == activeSelection }) else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(pr.url.absoluteString, forType: .string)
+        showToast("Copied PR URL")
+    }
+
+    private func showToast(_ message: String) {
+        toastMessage = message
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.4))
+            if toastMessage == message {
+                toastMessage = nil
+            }
+        }
     }
 
     /// Space dismisses the selected PR's unread mark without opening it.
