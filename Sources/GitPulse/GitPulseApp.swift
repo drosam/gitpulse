@@ -7,7 +7,7 @@ struct GitPulseApp: App {
     @State private var settings = AppSettings.shared
 
     var body: some Scene {
-        WindowGroup(id: "main") {
+        Window("GitPulse", id: "main") {
             ContentView()
                 .environment(session)
                 .environment(settings)
