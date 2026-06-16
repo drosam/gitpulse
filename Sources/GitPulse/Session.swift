@@ -4,6 +4,15 @@ import SwiftUI
 @Observable
 @MainActor
 final class Session {
+    struct HiddenPullRequest: Identifiable, Codable, Hashable {
+        var url: URL
+        var title: String
+        var repository: String
+        var number: Int
+
+        var id: URL { url }
+    }
+
     enum State {
         case signedOut
         case authorizing(DeviceFlow.Authorization)
@@ -18,6 +27,7 @@ final class Session {
     /// review request). Drives the menubar dot, dock badge, and per-row dot.
     /// Persisted, and cleared for a PR when the user opens it.
     private var unreadURLs: Set<URL> = []
+    private(set) var hiddenPullRequests: [HiddenPullRequest] = []
     private var token: String?
     private let settings = AppSettings.shared
     private var autoRefreshTask: Task<Void, Never>?
@@ -44,6 +54,7 @@ final class Session {
     private static let activityKey = "lastActivityAt"
     private static let unreadKey = "unreadURLs"
     private static let mergedKey = "knownMergedIDs"
+    private static let hiddenPullRequestsKey = "hiddenPullRequests"
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.activityKey),
@@ -53,6 +64,10 @@ final class Session {
         if let data = UserDefaults.standard.data(forKey: Self.unreadKey),
            let decoded = try? JSONDecoder().decode(Set<URL>.self, from: data) {
             unreadURLs = decoded
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.hiddenPullRequestsKey),
+           let decoded = try? JSONDecoder().decode([HiddenPullRequest].self, from: data) {
+            hiddenPullRequests = decoded
         }
         // A persisted set means a prior run already seeded; banner anything new
         // on the first refresh. A fresh install seeds silently instead.
@@ -84,7 +99,7 @@ final class Session {
         isRefreshing = true
         defer { isRefreshing = false }
         do {
-            let dashboard = try await GitHubClient(token: token, repositories: settings.activeRepositories).fetchDashboard()
+            let dashboard = filterHidden(try await GitHubClient(token: token, repositories: settings.activeRepositories).fetchDashboard())
             processActivity(in: dashboard)
             state = .ready(dashboard)
         } catch {
@@ -119,9 +134,11 @@ final class Session {
         knownMergedIDs = []
         hasSeededMerged = false
         unreadURLs = []
+        hiddenPullRequests = []
         UserDefaults.standard.removeObject(forKey: Self.activityKey)
         UserDefaults.standard.removeObject(forKey: Self.unreadKey)
         UserDefaults.standard.removeObject(forKey: Self.mergedKey)
+        UserDefaults.standard.removeObject(forKey: Self.hiddenPullRequestsKey)
         updateDockBadge()
         TokenStore.clear()
         token = nil
@@ -142,6 +159,33 @@ final class Session {
         }
     }
 
+    func hide(_ pullRequest: PullRequest) {
+        let hidden = HiddenPullRequest(
+            url: pullRequest.url,
+            title: pullRequest.title,
+            repository: pullRequest.repository,
+            number: pullRequest.number
+        )
+        hiddenPullRequests.removeAll { $0.url == pullRequest.url }
+        hiddenPullRequests.append(hidden)
+        unreadURLs.remove(pullRequest.url)
+        saveHiddenPullRequests()
+        saveNotificationState()
+        applyHiddenFilterToCurrentState()
+    }
+
+    func unhide(_ hiddenPullRequest: HiddenPullRequest) async {
+        hiddenPullRequests.removeAll { $0.url == hiddenPullRequest.url }
+        saveHiddenPullRequests()
+        await refresh()
+    }
+
+    func unhideAll() async {
+        hiddenPullRequests = []
+        saveHiddenPullRequests()
+        await refresh()
+    }
+
     // MARK: - Auto-refresh
 
     private func startAutoRefresh() {
@@ -160,8 +204,9 @@ final class Session {
     private func backgroundRefresh() async {
         guard let token else { return }
         if let dashboard = try? await GitHubClient(token: token, repositories: settings.activeRepositories).fetchDashboard() {
-            processActivity(in: dashboard)
-            state = .ready(dashboard)
+            let visibleDashboard = filterHidden(dashboard)
+            processActivity(in: visibleDashboard)
+            state = .ready(visibleDashboard)
         }
     }
 
@@ -268,6 +313,27 @@ final class Session {
         lastActivityAt = lastActivityAt.filter { currentIDs.contains($0.key) }
         unreadURLs = unreadURLs.filter { currentURLs.contains($0) }
         updateDockBadge()
+    }
+
+    private func applyHiddenFilterToCurrentState() {
+        guard case .ready(let dashboard) = state else { return }
+        state = .ready(filterHidden(dashboard))
+    }
+
+    private func filterHidden(_ dashboard: Dashboard) -> Dashboard {
+        let hiddenURLs = Set(hiddenPullRequests.map(\.url))
+        return Dashboard(
+            viewer: dashboard.viewer,
+            myPRs: dashboard.myPRs.filter { !hiddenURLs.contains($0.url) },
+            reviewRequests: dashboard.reviewRequests.filter { !hiddenURLs.contains($0.url) },
+            recentlyMerged: dashboard.recentlyMerged.filter { !hiddenURLs.contains($0.url) }
+        )
+    }
+
+    private func saveHiddenPullRequests() {
+        if let data = try? JSONEncoder().encode(hiddenPullRequests) {
+            UserDefaults.standard.set(data, forKey: Self.hiddenPullRequestsKey)
+        }
     }
 
     private func saveNotificationState() {

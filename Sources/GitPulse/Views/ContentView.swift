@@ -49,7 +49,8 @@ struct DashboardView: View {
             onLeft: { switchTo(.mine) },
             onRight: { switchTo(.review) },
             onReturn: openSelected,
-            onSpace: dismissSelected
+            onSpace: dismissSelected,
+            onHide: hideSelected
         ))
         .onAppear { selectFirstIfNeeded() }
         .toolbar {
@@ -134,6 +135,15 @@ struct DashboardView: View {
     private func dismissSelected() {
         guard let pr = activePRs.first(where: { $0.id == activeSelection }) else { return }
         session.markRead(prURL: pr.url)
+    }
+
+    /// H hides the selected PR from the dashboard until restored in Settings.
+    private func hideSelected() {
+        let prs = activePRs
+        guard let index = prs.firstIndex(where: { $0.id == activeSelection }) else { return }
+        let nextPRs = prs.enumerated().filter { $0.offset != index }.map(\.element)
+        activeSelection = nextPRs.indices.contains(index) ? nextPRs[index].id : nextPRs.last?.id
+        session.hide(prs[index])
     }
 
     private func selectFirstIfNeeded() {

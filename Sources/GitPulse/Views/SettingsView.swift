@@ -43,6 +43,32 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            Section("Hidden Pull Requests") {
+                if session.hiddenPullRequests.isEmpty {
+                    Text("No hidden pull requests")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(session.hiddenPullRequests) { pullRequest in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(pullRequest.title)
+                                    .lineLimit(1)
+                                Text("\(pullRequest.repository) #\(pullRequest.number)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Restore") {
+                                Task { await session.unhide(pullRequest) }
+                            }
+                        }
+                    }
+                    Button("Restore All") {
+                        Task { await session.unhideAll() }
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
         .padding(20)
