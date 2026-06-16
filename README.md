@@ -10,14 +10,28 @@ A small native macOS app that tracks your work on GitHub in one window:
 ## Features
 
 - Two-pane dashboard, refreshed automatically every 60 seconds (`⌘R` to refresh manually)
-- Click a row to open the PR in your browser
+- Click a row or press Return to open the selected PR in your browser
+- Keyboard navigation: arrow keys move between rows/panes, Space clears an unread dot, `H` hides the selected PR
 - Each row shows draft state, CI status (✓ / ✗ / running), head branch, labels, comment count, age, author, and review decision
-- **Notifications** — GitPulse polls GitHub's notification inbox (cheap ETag conditional requests):
-  - macOS banner for each new PR notification; click it to open the PR
-  - Blue dot on rows with unread notifications
-  - Menubar circle fills when anything is unread; Dock icon shows the unread count
-  - Opening a PR marks its notifications read on GitHub, and reading on github.com clears them here — both stay in sync
-- Lives in the menubar: closing the window hides the Dock icon, the app keeps polling in the background
+- **Notifications** — GitPulse detects useful PR activity from the dashboard:
+  - macOS banners for new review requests, new comments/reviews, CI completion, merge-queue exits, and newly merged PRs
+  - Optional sound
+  - Optional blue unread dots in rows and the menu bar
+  - Optional Dock badge count while anything is unread
+- **Settings** (`⌘,` or menu bar icon → **Settings…**):
+  - Show/hide notification banners
+  - Turn notification sounds on/off
+  - Show/hide Dock badge count
+  - Show/hide unread dots
+  - Check all matching repositories or only selected `owner/repo` repositories
+  - Restore hidden pull requests
+- Lives in the menu bar: closing the window hides the Dock icon, the app keeps polling in the background
+
+## Hiding pull requests
+
+- Select a PR and press `H`, or right-click it and choose **Hide Pull Request**.
+- Hidden PRs disappear from the dashboard and no longer drive unread dots, Dock badges, or notifications.
+- Restore one or all hidden PRs from **Settings… → Hidden Pull Requests**.
 
 ## Install
 
@@ -46,4 +60,4 @@ GitPulse resolves a GitHub token in this order:
 
 The device flow uses a registered OAuth app (client ID in `Sources/GitPulse/GitHub/DeviceFlow.swift`). No client secret is needed or shipped; tokens are stored only in the Keychain.
 
-The token needs the `repo` scope (covers private-repo search and the notifications API) and `read:org` (lets search see org PRs).
+The token needs the `repo` scope (covers private-repo search) and `read:org` (lets search see org PRs).
