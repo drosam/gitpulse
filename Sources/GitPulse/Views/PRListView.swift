@@ -160,7 +160,7 @@ struct PRRow: View {
     }
 
     private var isQueued: Bool {
-        pullRequest.mergeQueueState == "QUEUED" || pullRequest.mergeQueueState == "AWAITING_CHECKS"
+        pullRequest.isInMergeQueue || pullRequest.mergeQueueState == "QUEUED" || pullRequest.mergeQueueState == "AWAITING_CHECKS"
     }
 
     /// Gold merge-queue glyph while the PR waits in the queue, otherwise the

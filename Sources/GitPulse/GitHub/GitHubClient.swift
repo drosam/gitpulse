@@ -54,7 +54,7 @@ struct GitHubClient: Sendable {
           }
         }
         fragment prFields on PullRequest {
-          id number title url isDraft reviewDecision additions deletions createdAt updatedAt
+          id number title url isDraft isInMergeQueue reviewDecision additions deletions createdAt updatedAt
           headRefName
           totalCommentsCount
           repository { nameWithOwner }
@@ -141,6 +141,7 @@ private struct PRNode: Decodable {
     var title: String?
     var url: URL?
     var isDraft: Bool?
+    var isInMergeQueue: Bool?
     var headRefName: String?
     var reviewDecision: PullRequest.ReviewDecision?
     var additions: Int?
@@ -204,6 +205,7 @@ private struct PRNode: Decodable {
             isDraft: isDraft ?? false,
             reviewDecision: reviewDecision,
             checkState: commits?.nodes.first??.commit.statusCheckRollup?.state,
+            isInMergeQueue: isInMergeQueue ?? false,
             mergeQueueState: mergeQueueEntry?.state,
             labels: labels?.nodes.compactMap { $0 } ?? [],
             activity: activityEvents,

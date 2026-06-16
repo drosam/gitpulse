@@ -294,14 +294,14 @@ final class Session {
     private func detectMergeQueueExits(in dashboard: Dashboard) {
         let prs = dashboard.myPRs + dashboard.reviewRequests
         if hasSeededMergeQueue {
-            for pr in prs where prsInMergeQueue.contains(pr.id) && pr.mergeQueueState == nil {
+            for pr in prs where prsInMergeQueue.contains(pr.id) && !pr.isInMergeQueue && pr.mergeQueueState == nil {
                 recordUnread(pr)
                 if !isHidden(pr) {
                     Notifier.shared.postMergeQueueExit(for: pr)
                 }
             }
         }
-        prsInMergeQueue = Set(prs.filter { $0.mergeQueueState != nil }.map(\.id))
+        prsInMergeQueue = Set(prs.filter { $0.isInMergeQueue || $0.mergeQueueState != nil }.map(\.id))
         hasSeededMergeQueue = true
     }
 
