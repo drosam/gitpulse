@@ -45,6 +45,11 @@ struct SettingsView: View {
             }
 
             Section("Hidden Pull Requests") {
+                Toggle("Show hidden pull requests in lists", isOn: $settings.showHiddenPullRequests)
+                Text("Shown hidden pull requests stay dimmed and marked Hidden. They still do not count for unread dots, Dock badges, or notifications.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 if session.hiddenPullRequests.isEmpty {
                     Text("No hidden pull requests")
                         .foregroundStyle(.secondary)
@@ -77,6 +82,9 @@ struct SettingsView: View {
             Task { await session.applySettingsChanged() }
         }
         .onChange(of: settings.repositoryScope) { _, _ in
+            Task { await session.applySettingsChanged(refresh: true) }
+        }
+        .onChange(of: settings.showHiddenPullRequests) { _, _ in
             Task { await session.applySettingsChanged(refresh: true) }
         }
     }

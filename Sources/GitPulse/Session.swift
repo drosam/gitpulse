@@ -82,6 +82,7 @@ final class Session {
 
     /// PR html URLs with unacknowledged activity, for the per-row dot.
     var unreadPRURLs: Set<URL> { unreadURLs }
+    var hiddenPRURLs: Set<URL> { Set(hiddenPullRequests.map(\.url)) }
 
     func start() async {
         guard let resolved = TokenStore.resolve() else {
@@ -99,9 +100,9 @@ final class Session {
         isRefreshing = true
         defer { isRefreshing = false }
         do {
-            let dashboard = filterHidden(try await GitHubClient(token: token, repositories: settings.activeRepositories).fetchDashboard())
-            processActivity(in: dashboard)
-            state = .ready(dashboard)
+            let dashboard = try await GitHubClient(token: token, repositories: settings.activeRepositories).fetchDashboard()
+            processActivity(in: filterHidden(dashboard))
+            state = .ready(displayDashboard(dashboard))
         } catch {
             state = .failed(error.localizedDescription)
         }
@@ -171,11 +172,15 @@ final class Session {
         unreadURLs.remove(pullRequest.url)
         saveHiddenPullRequests()
         saveNotificationState()
-        applyHiddenFilterToCurrentState()
+        applyHiddenDisplayToCurrentState()
     }
 
     func unhide(_ hiddenPullRequest: HiddenPullRequest) async {
-        hiddenPullRequests.removeAll { $0.url == hiddenPullRequest.url }
+        await unhide(url: hiddenPullRequest.url)
+    }
+
+    func unhide(url: URL) async {
+        hiddenPullRequests.removeAll { $0.url == url }
         saveHiddenPullRequests()
         await refresh()
     }
@@ -204,9 +209,8 @@ final class Session {
     private func backgroundRefresh() async {
         guard let token else { return }
         if let dashboard = try? await GitHubClient(token: token, repositories: settings.activeRepositories).fetchDashboard() {
-            let visibleDashboard = filterHidden(dashboard)
-            processActivity(in: visibleDashboard)
-            state = .ready(visibleDashboard)
+            processActivity(in: filterHidden(dashboard))
+            state = .ready(displayDashboard(dashboard))
         }
     }
 
@@ -315,9 +319,13 @@ final class Session {
         updateDockBadge()
     }
 
-    private func applyHiddenFilterToCurrentState() {
+    private func applyHiddenDisplayToCurrentState() {
         guard case .ready(let dashboard) = state else { return }
-        state = .ready(filterHidden(dashboard))
+        state = .ready(displayDashboard(dashboard))
+    }
+
+    private func displayDashboard(_ dashboard: Dashboard) -> Dashboard {
+        settings.showHiddenPullRequests ? dashboard : filterHidden(dashboard)
     }
 
     private func filterHidden(_ dashboard: Dashboard) -> Dashboard {

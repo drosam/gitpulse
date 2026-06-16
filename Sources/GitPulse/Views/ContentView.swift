@@ -76,6 +76,7 @@ struct DashboardView: View {
                 systemImage: "arrow.triangle.pull",
                 pullRequests: dashboard.myPRs,
                 unreadURLs: settings.showUnreadDots ? session.unreadPRURLs : [],
+                hiddenURLs: session.hiddenPRURLs,
                 isActive: activePane == .mine,
                 selectedID: Binding(
                     get: { activePane == .mine ? mySelectedID : nil },
@@ -87,6 +88,7 @@ struct DashboardView: View {
                 systemImage: "eye",
                 pullRequests: dashboard.reviewRequests,
                 unreadURLs: settings.showUnreadDots ? session.unreadPRURLs : [],
+                hiddenURLs: session.hiddenPRURLs,
                 isActive: activePane == .review,
                 selectedID: Binding(
                     get: { activePane == .review ? reviewSelectedID : nil },

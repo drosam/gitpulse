@@ -5,6 +5,7 @@ struct PRListView: View {
     var systemImage: String
     var pullRequests: [PullRequest]
     var unreadURLs: Set<URL> = []
+    var hiddenURLs: Set<URL> = []
     var isActive: Bool
     @Binding var selectedID: PullRequest.ID?
 
@@ -27,7 +28,8 @@ struct PRListView: View {
                 List(pullRequests, selection: $selectedID) { pullRequest in
                     PRRow(
                         pullRequest: pullRequest,
-                        hasNotification: unreadURLs.contains(pullRequest.url)
+                        hasNotification: unreadURLs.contains(pullRequest.url),
+                        isHidden: hiddenURLs.contains(pullRequest.url)
                     )
                     .tag(pullRequest.id)
                 }
@@ -44,6 +46,7 @@ struct PRRow: View {
     @State private var isHovering = false
     var pullRequest: PullRequest
     var hasNotification: Bool = false
+    var isHidden: Bool = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -56,6 +59,14 @@ struct PRRow: View {
                         .font(.system(size: 14, weight: .semibold))
                         .lineLimit(1)
                     checkIcon
+                    if isHidden {
+                        Text("Hidden")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.15), in: Capsule())
+                    }
                     ForEach(pullRequest.labels.prefix(3), id: \.self) { label in
                         LabelPill(label: label)
                     }
@@ -120,7 +131,8 @@ struct PRRow: View {
         .padding(.vertical, 4)
         .padding(.horizontal, 6)
         .contentShape(Rectangle())
-        .background(isHovering ? Color.primary.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .opacity(isHidden ? 0.55 : 1)
+        .background(isHidden ? Color.secondary.opacity(0.08) : (isHovering ? Color.primary.opacity(0.06) : .clear), in: RoundedRectangle(cornerRadius: 6))
         .onHover { hovering in
             isHovering = hovering
             if hovering {
@@ -134,7 +146,13 @@ struct PRRow: View {
         }
         .contextMenu {
             Button("Open on GitHub") { open() }
-            Button("Hide Pull Request") { session.hide(pullRequest) }
+            if isHidden {
+                Button("Restore Pull Request") {
+                    Task { await session.unhide(url: pullRequest.url) }
+                }
+            } else {
+                Button("Hide Pull Request") { session.hide(pullRequest) }
+            }
         }
     }
 

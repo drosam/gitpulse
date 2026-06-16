@@ -29,6 +29,10 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(showUnreadDots, forKey: Self.showUnreadDotsKey) }
     }
 
+    var showHiddenPullRequests: Bool {
+        didSet { UserDefaults.standard.set(showHiddenPullRequests, forKey: Self.showHiddenPullRequestsKey) }
+    }
+
     var repositoryScope: RepositoryScope {
         didSet { UserDefaults.standard.set(repositoryScope.rawValue, forKey: Self.repositoryScopeKey) }
     }
@@ -53,6 +57,7 @@ final class AppSettings {
     private static let playNotificationSoundsKey = "settings.playNotificationSounds"
     private static let showDockBadgeKey = "settings.showDockBadge"
     private static let showUnreadDotsKey = "settings.showUnreadDots"
+    private static let showHiddenPullRequestsKey = "settings.showHiddenPullRequests"
     private static let repositoryScopeKey = "settings.repositoryScope"
     private static let selectedRepositoriesKey = "settings.selectedRepositories"
 
@@ -71,6 +76,7 @@ final class AppSettings {
         playNotificationSounds = defaults.object(forKey: Self.playNotificationSoundsKey) as? Bool ?? true
         showDockBadge = defaults.object(forKey: Self.showDockBadgeKey) as? Bool ?? true
         showUnreadDots = defaults.object(forKey: Self.showUnreadDotsKey) as? Bool ?? true
+        showHiddenPullRequests = defaults.object(forKey: Self.showHiddenPullRequestsKey) as? Bool ?? false
         repositoryScope = RepositoryScope(rawValue: defaults.string(forKey: Self.repositoryScopeKey) ?? "") ?? .all
         selectedRepositoriesText = defaults.string(forKey: Self.selectedRepositoriesKey) ?? ""
     }
