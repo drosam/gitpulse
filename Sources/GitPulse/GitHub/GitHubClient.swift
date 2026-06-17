@@ -68,6 +68,7 @@ struct GitHubClient: Sendable {
           commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
           comments(last: 10) { nodes { author { login } createdAt } }
           reviews(last: 10) { nodes { author { login } state submittedAt } }
+          reviewThreads(last: 20) { nodes { comments(last: 10) { nodes { author { login } createdAt } } } }
         }
         """
     }
@@ -167,6 +168,7 @@ private struct PRNode: Decodable {
     var commits: CommitConnection?
     var comments: CommentConnection?
     var reviews: ReviewConnection?
+    var reviewThreads: ReviewThreadConnection?
 
     struct Repository: Decodable { var nameWithOwner: String }
     struct Author: Decodable { var login: String }
@@ -186,6 +188,10 @@ private struct PRNode: Decodable {
         var nodes: [Node?]
         struct Node: Decodable { var author: Author?; var state: String?; var submittedAt: Date? }
     }
+    struct ReviewThreadConnection: Decodable {
+        var nodes: [Node?]
+        struct Node: Decodable { var comments: CommentConnection? }
+    }
 
     /// Comments + reviews flattened into activity events, sorted newest-last.
     private var activityEvents: [PullRequest.ActivityEvent] {
@@ -197,6 +203,12 @@ private struct PRNode: Decodable {
         for node in reviews?.nodes ?? [] {
             guard let node, let login = node.author?.login, let at = node.submittedAt else { continue }
             events.append(.init(kind: .review(state: node.state ?? ""), author: login, createdAt: at))
+        }
+        for thread in reviewThreads?.nodes ?? [] {
+            for comment in thread?.comments?.nodes ?? [] {
+                guard let comment, let login = comment.author?.login, let at = comment.createdAt else { continue }
+                events.append(.init(kind: .comment, author: login, createdAt: at))
+            }
         }
         return events.sorted { $0.createdAt < $1.createdAt }
     }
