@@ -1,14 +1,14 @@
 import Foundation
 
-struct PullRequest: Identifiable, Hashable, Sendable {
-    enum ReviewDecision: String, Decodable, Sendable {
+struct PullRequest: Identifiable, Hashable, Codable, Sendable {
+    enum ReviewDecision: String, Codable, Sendable {
         case approved = "APPROVED"
         case changesRequested = "CHANGES_REQUESTED"
         case reviewRequired = "REVIEW_REQUIRED"
     }
 
     /// `statusCheckRollup.state` of the head commit; nil when the PR has no checks.
-    enum CheckState: String, Decodable, Sendable {
+    enum CheckState: String, Codable, Sendable {
         case success = "SUCCESS"
         case failure = "FAILURE"
         case error = "ERROR"
@@ -16,7 +16,7 @@ struct PullRequest: Identifiable, Hashable, Sendable {
         case expected = "EXPECTED"
     }
 
-    struct Label: Hashable, Decodable, Sendable {
+    struct Label: Hashable, Codable, Sendable {
         var name: String
         /// 6-digit hex without "#", as returned by the API (e.g. "d73a4a").
         var color: String
@@ -24,8 +24,8 @@ struct PullRequest: Identifiable, Hashable, Sendable {
 
     /// A comment or review on the PR, used to derive notifications locally
     /// instead of relying on GitHub's (settings-dependent) notification inbox.
-    struct ActivityEvent: Hashable, Sendable {
-        enum Kind: Hashable, Sendable {
+    struct ActivityEvent: Hashable, Codable, Sendable {
+        enum Kind: Hashable, Codable, Sendable {
             case comment
             /// Raw review state: APPROVED / CHANGES_REQUESTED / COMMENTED / …
             case review(state: String)
@@ -43,6 +43,7 @@ struct PullRequest: Identifiable, Hashable, Sendable {
     var author: String
     var headBranch: String
     var isDraft: Bool
+    var isMerged: Bool
     var reviewDecision: ReviewDecision?
     var checkState: CheckState?
     /// GitHub's explicit queue flag. More reliable than inferring from entry state.

@@ -85,6 +85,12 @@ struct PRRow: View {
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                    if pullRequest.isMerged {
+                        Text("•")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                        mergedPill
+                    }
                     if isQueued {
                         Text("•")
                             .font(.system(size: 12))
@@ -167,7 +173,11 @@ struct PRRow: View {
     /// green open-PR icon (gray dotted for drafts) — like GitHub's list.
     @ViewBuilder
     private var stateIcon: some View {
-        if isQueued {
+        if pullRequest.isMerged {
+            GitMergeIcon()
+                .foregroundStyle(.purple)
+                .help("Merged pull request")
+        } else if isQueued {
             MergeQueueIcon()
                 .foregroundStyle(Self.queuedGold)
                 .help("Waiting in the merge queue")
@@ -214,6 +224,16 @@ struct PRRow: View {
             .background(Self.queuedGold.opacity(0.15), in: Capsule())
             .help("Waiting in the merge queue")
         }
+    }
+
+    private var mergedPill: some View {
+        Text("Merged")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.purple)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.purple.opacity(0.15), in: Capsule())
+            .help("Merged pull request")
     }
 
     private var hiddenPill: some View {
@@ -308,6 +328,44 @@ struct PullRequestIcon: View {
             path.move(to: CGPoint(x: x, y: startY))
             path.addLine(to: CGPoint(x: x, y: endY))
         }
+    }
+}
+
+/// GitHub's `git-merge` octicon, hand-traced from `git-merge-16`.
+/// Tinted via `foregroundStyle`.
+struct GitMergeIcon: View {
+    var body: some View {
+        Canvas { context, size in
+            let scale = min(size.width, size.height) / 16
+            context.scaleBy(x: scale, y: scale)
+            let stroke = StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+
+            // Main rail from the top-left node to the bottom-left node.
+            context.stroke(Path { path in
+                path.move(to: CGPoint(x: 4.25, y: 5.35))
+                path.addLine(to: CGPoint(x: 4.25, y: 10.65))
+            }, with: .foreground, style: stroke)
+
+            // Curved branch from the top-left node into the right node.
+            context.stroke(Path { path in
+                path.move(to: CGPoint(x: 5.45, y: 5.15))
+                path.addCurve(
+                    to: CGPoint(x: 9.25, y: 8.25),
+                    control1: CGPoint(x: 6.25, y: 7.0),
+                    control2: CGPoint(x: 7.75, y: 8.25)
+                )
+                path.addLine(to: CGPoint(x: 10.65, y: 8.25))
+            }, with: .foreground, style: stroke)
+
+            context.stroke(circle(at: CGPoint(x: 5.0, y: 3.25)), with: .foreground, style: stroke)
+            context.stroke(circle(at: CGPoint(x: 4.25, y: 12.75)), with: .foreground, style: stroke)
+            context.stroke(circle(at: CGPoint(x: 12.75, y: 8.25)), with: .foreground, style: stroke)
+        }
+        .frame(width: 16, height: 16)
+    }
+
+    private func circle(at center: CGPoint) -> Path {
+        Path(ellipseIn: CGRect(x: center.x - 1.5, y: center.y - 1.5, width: 3, height: 3))
     }
 }
 

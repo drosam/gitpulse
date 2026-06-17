@@ -2,7 +2,7 @@
 
 A small native macOS app that tracks your work on GitHub in one window:
 
-- **My pull requests** — open PRs you authored or are assigned to
+- **My pull requests** — open PRs you authored or are assigned to, plus unread merged PRs until opened
 - **Review requested** — open PRs waiting for your review
 
 ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue) ![Swift 6](https://img.shields.io/badge/Swift-6-orange)
@@ -12,9 +12,10 @@ A small native macOS app that tracks your work on GitHub in one window:
 - Two-pane dashboard, refreshed automatically every 60 seconds (`⌘R` to refresh manually)
 - Click a row or press Return to open the selected PR in your browser
 - Keyboard navigation: arrow keys move between rows/panes, Space clears an unread dot, `⌘C` copies the selected PR URL, `H` hides/restores the selected PR, `⌘H` toggles showing hidden PRs
-- Each row shows draft state, merge-queue status, CI status (✓ / ✗ / running), head branch, labels, comment count, age, author, and review decision
+- Each row shows draft state, merged/merge-queue status, CI status (✓ / ✗ / running), head branch, labels, comment count, age, author, and review decision
 - **Notifications** — GitPulse detects useful PR activity from the dashboard:
-  - macOS banners for new review requests, new comments/reviews, CI completion, merge-queue exits, and newly merged PRs you authored or were assigned to
+  - macOS banners for new review requests, new top-level comments, inline review-thread replies, submitted reviews, CI completion, merge-queue exits, and newly merged PRs you authored or were assigned to
+  - Newly merged authored/assigned PRs stay in **My pull requests** with a purple merged icon and unread dot until you open them or press Space to dismiss
   - Optional sound
   - Optional blue unread dots in rows and the menu bar
   - Optional Dock badge count while anything is unread
@@ -27,6 +28,13 @@ A small native macOS app that tracks your work on GitHub in one window:
   - Show hidden pull requests in lists
   - Restore hidden pull requests
 - Lives in the menu bar: closing the window hides the Dock icon, the app keeps polling in the background
+
+## Merged pull requests
+
+- When a PR you authored or are assigned to merges, GitPulse keeps it temporarily in **My pull requests**.
+- Merged rows use GitHub's purple merge icon, show a **Merged** pill, and drive the row dot, menu bar dot, and Dock badge like other unread items.
+- Open the row or press Space to clear it. Once cleared, the merged row is removed from the list.
+- Merged PRs are never added to **Review requested**.
 
 ## Hiding pull requests
 

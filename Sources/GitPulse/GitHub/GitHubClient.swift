@@ -27,6 +27,7 @@ enum GitHubError: LocalizedError {
 struct GitHubClient: Sendable {
     var token: String
     var repositories: [String] = []
+    var trackedPullRequestIDs: [PullRequest.ID] = []
 
     private static let endpoint = URL(string: "https://api.github.com/graphql")!
 
@@ -37,6 +38,11 @@ struct GitHubClient: Sendable {
         let scoped: (String) -> String = { query in
             repoFilter.isEmpty ? query : "\(query) \(repoFilter)"
         }
+
+        let trackedIDs = trackedPullRequestIDs
+            .prefix(100)
+            .map { "\"\($0)\"" }
+            .joined(separator: ", ")
 
         return """
         query Dashboard {
@@ -56,9 +62,12 @@ struct GitHubClient: Sendable {
           mergedAssigned: search(query: "\(scoped("is:pr is:merged assignee:@me archived:false sort:updated-desc"))", type: ISSUE, first: 20) {
             nodes { ...prFields }
           }
+          tracked: nodes(ids: [\(trackedIDs)]) {
+            ... on PullRequest { ...prFields }
+          }
         }
         fragment prFields on PullRequest {
-          id number title url isDraft isInMergeQueue reviewDecision additions deletions createdAt updatedAt
+          id number title url state isDraft isInMergeQueue reviewDecision additions deletions createdAt updatedAt
           headRefName
           totalCommentsCount
           repository { nameWithOwner }
@@ -105,8 +114,13 @@ struct GitHubClient: Sendable {
 
         let mergedAuthored = payload.mergedAuthored.nodes.compactMap { $0?.pullRequest }
         let mergedAssigned = payload.mergedAssigned.nodes.compactMap { $0?.pullRequest }
-        seen = Set(mergedAuthored.map(\.id))
-        let recentlyMerged = (mergedAuthored + mergedAssigned.filter { seen.insert($0.id).inserted })
+        let trackedMerged = payload.tracked?.compactMap { node -> PullRequest? in
+            guard node?.state == "MERGED" else { return nil }
+            return node?.pullRequest
+        } ?? []
+        seen = []
+        let recentlyMerged = (mergedAuthored + mergedAssigned + trackedMerged)
+            .filter { seen.insert($0.id).inserted }
             .sorted { $0.updatedAt > $1.updatedAt }
 
         return Dashboard(
@@ -136,6 +150,7 @@ private struct Payload: Decodable {
     var reviews: SearchResult
     var mergedAuthored: SearchResult
     var mergedAssigned: SearchResult
+    var tracked: [PRNode?]?
 }
 
 private struct Viewer: Decodable {
@@ -152,6 +167,7 @@ private struct PRNode: Decodable {
     var number: Int?
     var title: String?
     var url: URL?
+    var state: String?
     var isDraft: Bool?
     var isInMergeQueue: Bool?
     var headRefName: String?
@@ -226,6 +242,7 @@ private struct PRNode: Decodable {
             author: author?.login ?? "ghost",
             headBranch: headRefName ?? "",
             isDraft: isDraft ?? false,
+            isMerged: state == "MERGED",
             reviewDecision: reviewDecision,
             checkState: commits?.nodes.first??.commit.statusCheckRollup?.state,
             isInMergeQueue: isInMergeQueue ?? false,

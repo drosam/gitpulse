@@ -29,6 +29,8 @@ GitPulse is a native macOS SwiftUI menu bar app that tracks GitHub pull requests
 - Runtime state and notification detection live in `Sources/GitPulse/Session.swift`.
 - GitHub GraphQL fetching/decoding lives in `Sources/GitPulse/GitHub/GitHubClient.swift`.
 - Main dashboard UI lives in `Sources/GitPulse/Views/ContentView.swift` and `Sources/GitPulse/Views/PRListView.swift`.
+- Merged authored/assigned PRs are kept as temporary unread rows in **My pull requests** until opened or dismissed; see `pendingMergedPullRequests` in `Session.swift`.
+- Activity notifications include top-level PR comments, submitted reviews, and inline review-thread comments fetched in `GitHubClient.swift`.
 - README should stay current when user-facing behavior changes.
 
 ## Git safety

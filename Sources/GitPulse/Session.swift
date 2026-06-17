@@ -28,6 +28,8 @@ final class Session {
     /// Persisted, and cleared for a PR when the user opens it.
     private var unreadURLs: Set<URL> = []
     private(set) var hiddenPullRequests: [HiddenPullRequest] = []
+    private var pendingMergedPullRequests: [PullRequest] = []
+    private var lastMyPullRequestIDs: Set<PullRequest.ID> = []
     private var token: String?
     private let settings = AppSettings.shared
     private var autoRefreshTask: Task<Void, Never>?
@@ -54,6 +56,8 @@ final class Session {
     private static let activityKey = "lastActivityAt"
     private static let unreadKey = "unreadURLs"
     private static let mergedKey = "knownMergedIDs"
+    private static let pendingMergedPullRequestsKey = "pendingMergedPullRequests"
+    private static let lastMyPullRequestIDsKey = "lastMyPullRequestIDs"
     private static let hiddenPullRequestsKey = "hiddenPullRequests"
 
     init() {
@@ -68,6 +72,14 @@ final class Session {
         if let data = UserDefaults.standard.data(forKey: Self.hiddenPullRequestsKey),
            let decoded = try? JSONDecoder().decode([HiddenPullRequest].self, from: data) {
             hiddenPullRequests = decoded
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.pendingMergedPullRequestsKey),
+           let decoded = try? JSONDecoder().decode([PullRequest].self, from: data) {
+            pendingMergedPullRequests = decoded
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.lastMyPullRequestIDsKey),
+           let decoded = try? JSONDecoder().decode(Set<PullRequest.ID>.self, from: data) {
+            lastMyPullRequestIDs = decoded
         }
         // A persisted set means a prior run already seeded; banner anything new
         // on the first refresh. A fresh install seeds silently instead.
@@ -104,7 +116,11 @@ final class Session {
         isRefreshing = true
         defer { isRefreshing = false }
         do {
-            let dashboard = try await GitHubClient(token: token, repositories: settings.activeRepositories).fetchDashboard()
+            let dashboard = try await GitHubClient(
+                token: token,
+                repositories: settings.activeRepositories,
+                trackedPullRequestIDs: Array(lastMyPullRequestIDs)
+            ).fetchDashboard()
             processActivity(in: dashboard)
             state = .ready(displayDashboard(dashboard))
         } catch {
@@ -140,9 +156,13 @@ final class Session {
         hasSeededMerged = false
         unreadURLs = []
         hiddenPullRequests = []
+        pendingMergedPullRequests = []
+        lastMyPullRequestIDs = []
         UserDefaults.standard.removeObject(forKey: Self.activityKey)
         UserDefaults.standard.removeObject(forKey: Self.unreadKey)
         UserDefaults.standard.removeObject(forKey: Self.mergedKey)
+        UserDefaults.standard.removeObject(forKey: Self.pendingMergedPullRequestsKey)
+        UserDefaults.standard.removeObject(forKey: Self.lastMyPullRequestIDsKey)
         UserDefaults.standard.removeObject(forKey: Self.hiddenPullRequestsKey)
         updateDockBadge()
         TokenStore.clear()
@@ -152,9 +172,22 @@ final class Session {
 
     /// Called when the user opens a PR: clear its unread mark.
     func markRead(prURL: URL) {
-        guard unreadURLs.remove(prURL) != nil else { return }
+        let removedUnread = unreadURLs.remove(prURL) != nil
+        let removedMerged = pendingMergedPullRequests.contains { $0.url == prURL }
+        pendingMergedPullRequests.removeAll { $0.url == prURL }
+        guard removedUnread || removedMerged else { return }
         updateDockBadge()
         saveNotificationState()
+        if removedMerged, case .ready(let dashboard) = state {
+            state = .ready(Dashboard(
+                viewer: dashboard.viewer,
+                myPRs: dashboard.myPRs.filter { $0.url != prURL },
+                reviewRequests: dashboard.reviewRequests,
+                recentlyMerged: dashboard.recentlyMerged
+            ))
+        } else {
+            applyHiddenDisplayToCurrentState()
+        }
     }
 
     func applySettingsChanged(refresh: Bool = false) async {
@@ -306,23 +339,26 @@ final class Session {
     }
 
     /// Posts a banner for each newly merged PR you authored or were assigned to.
-    /// Sourced from merged searches since merged PRs leave the open panes; no unread mark
-    /// because there's no row to clear. Seeds silently only on a fresh install.
+    /// Keeps merged PRs as unread rows in My pull requests until opened.
     private func detectMergedPRs(in dashboard: Dashboard) {
         let ids = Set(dashboard.recentlyMerged.map(\.id))
         if hasSeededMerged {
             for pr in dashboard.recentlyMerged where !knownMergedIDs.contains(pr.id) && !isHidden(pr) {
+                recordUnread(pr)
+                pendingMergedPullRequests.removeAll { $0.id == pr.id }
+                pendingMergedPullRequests.append(pr)
                 Notifier.shared.postMerged(for: pr)
             }
         }
-        knownMergedIDs = ids
+        knownMergedIDs.formUnion(ids)
+        lastMyPullRequestIDs = Set(dashboard.myPRs.map(\.id))
         hasSeededMerged = true
     }
 
     /// Drops per-PR tracking state for PRs no longer shown in the app, so the
     /// maps don't grow without bound as PRs are merged/closed.
     private func pruneState(keeping dashboard: Dashboard) {
-        let prs = dashboard.myPRs + dashboard.reviewRequests
+        let prs = dashboard.myPRs + dashboard.reviewRequests + pendingMergedPullRequests
         let currentIDs = Set(prs.map(\.id))
         let currentURLs = Set(prs.map(\.url))
         lastCheckState = lastCheckState.filter { currentIDs.contains($0.key) }
@@ -348,7 +384,7 @@ final class Session {
         if settings.showHiddenPullRequests {
             return Dashboard(
                 viewer: dashboard.viewer,
-                myPRs: sortHiddenLast(dashboard.myPRs),
+                myPRs: sortHiddenLast(mergedRows(in: dashboard)),
                 reviewRequests: sortHiddenLast(dashboard.reviewRequests),
                 recentlyMerged: dashboard.recentlyMerged
             )
@@ -360,11 +396,17 @@ final class Session {
         pullRequests.filter { !isHidden($0) } + pullRequests.filter { isHidden($0) }
     }
 
+    private func mergedRows(in dashboard: Dashboard) -> [PullRequest] {
+        let openIDs = Set(dashboard.myPRs.map(\.id))
+        let pending = pendingMergedPullRequests.filter { !openIDs.contains($0.id) && unreadURLs.contains($0.url) }
+        return dashboard.myPRs + pending
+    }
+
     private func filterHidden(_ dashboard: Dashboard) -> Dashboard {
         let hiddenURLs = Set(hiddenPullRequests.map(\.url))
         return Dashboard(
             viewer: dashboard.viewer,
-            myPRs: dashboard.myPRs.filter { !hiddenURLs.contains($0.url) },
+            myPRs: mergedRows(in: dashboard).filter { !hiddenURLs.contains($0.url) },
             reviewRequests: dashboard.reviewRequests.filter { !hiddenURLs.contains($0.url) },
             recentlyMerged: dashboard.recentlyMerged.filter { !hiddenURLs.contains($0.url) }
         )
@@ -385,6 +427,12 @@ final class Session {
         }
         if let data = try? JSONEncoder().encode(knownMergedIDs) {
             UserDefaults.standard.set(data, forKey: Self.mergedKey)
+        }
+        if let data = try? JSONEncoder().encode(pendingMergedPullRequests) {
+            UserDefaults.standard.set(data, forKey: Self.pendingMergedPullRequestsKey)
+        }
+        if let data = try? JSONEncoder().encode(lastMyPullRequestIDs) {
+            UserDefaults.standard.set(data, forKey: Self.lastMyPullRequestIDsKey)
         }
     }
 
