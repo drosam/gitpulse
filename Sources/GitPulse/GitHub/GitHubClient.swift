@@ -4,6 +4,7 @@ struct Dashboard: Sendable {
     var viewer: String
     var myPRs: [PullRequest]
     var reviewRequests: [PullRequest]
+    /// Open PRs where your review is requested, or where you participated and have not approved.
     /// Recently merged PRs you authored or were assigned to. Not shown in any
     /// pane — used only to banner a merge once, since merged PRs drop out of the
     /// open searches.
@@ -56,6 +57,12 @@ struct GitHubClient: Sendable {
           reviews: search(query: "\(scoped("is:pr is:open review-requested:@me archived:false"))", type: ISSUE, first: 50) {
             nodes { ...prFields }
           }
+          reviewed: search(query: "\(scoped("is:pr is:open reviewed-by:@me archived:false"))", type: ISSUE, first: 50) {
+            nodes { ...prFields }
+          }
+          commented: search(query: "\(scoped("is:pr is:open commenter:@me archived:false"))", type: ISSUE, first: 50) {
+            nodes { ...prFields }
+          }
           mergedAuthored: search(query: "\(scoped("is:pr is:merged author:@me archived:false sort:updated-desc"))", type: ISSUE, first: 20) {
             nodes { ...prFields }
           }
@@ -76,7 +83,7 @@ struct GitHubClient: Sendable {
           labels(first: 10) { nodes { name color } }
           commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
           comments(last: 10) { nodes { author { login } createdAt } }
-          reviews(last: 10) { nodes { author { login } state submittedAt } }
+          reviews(last: 30) { nodes { author { login } state submittedAt } }
           reviewThreads(last: 20) { nodes { comments(last: 10) { nodes { author { login } createdAt } } } }
         }
         """
@@ -123,10 +130,19 @@ struct GitHubClient: Sendable {
             .filter { seen.insert($0.id).inserted }
             .sorted { $0.updatedAt > $1.updatedAt }
 
+        let viewer = payload.viewer.login
+        seen = []
+        let reviewRequests = (payload.reviews.nodes + payload.reviewed.nodes + payload.commented.nodes)
+            .compactMap { $0 }
+            .filter { $0.latestReviewState(by: viewer) != "APPROVED" }
+            .compactMap { $0.pullRequest }
+            .filter { seen.insert($0.id).inserted }
+            .sorted { $0.updatedAt > $1.updatedAt }
+
         return Dashboard(
-            viewer: payload.viewer.login,
+            viewer: viewer,
             myPRs: myPRs,
-            reviewRequests: payload.reviews.nodes.compactMap { $0?.pullRequest },
+            reviewRequests: reviewRequests,
             recentlyMerged: recentlyMerged
         )
     }
@@ -148,6 +164,8 @@ private struct Payload: Decodable {
     var mine: SearchResult
     var assigned: SearchResult
     var reviews: SearchResult
+    var reviewed: SearchResult
+    var commented: SearchResult
     var mergedAuthored: SearchResult
     var mergedAssigned: SearchResult
     var tracked: [PRNode?]?
@@ -207,6 +225,19 @@ private struct PRNode: Decodable {
     struct ReviewThreadConnection: Decodable {
         var nodes: [Node?]
         struct Node: Decodable { var comments: CommentConnection? }
+    }
+
+    func latestReviewState(by login: String) -> String? {
+        reviews?.nodes
+            .compactMap { node -> (state: String, submittedAt: Date)? in
+                guard let node,
+                      node.author?.login == login,
+                      let state = node.state,
+                      let submittedAt = node.submittedAt else { return nil }
+                return (state, submittedAt)
+            }
+            .max { $0.submittedAt < $1.submittedAt }?
+            .state
     }
 
     /// Comments + reviews flattened into activity events, sorted newest-last.
