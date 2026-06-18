@@ -3,7 +3,7 @@
 A small native macOS app that tracks your work on GitHub in one window:
 
 - **My pull requests** — open PRs you authored or are assigned to, plus unread merged PRs until opened
-- **Review requested** — open PRs waiting for your review, plus PRs you commented on or reviewed until you approve them
+- **Review requested** — open PRs waiting for your review, plus PRs you commented on or reviewed until you approve them; PRs already in **My pull requests** stay only there
 
 ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue) ![Swift 6](https://img.shields.io/badge/Swift-6-orange)
 
@@ -33,6 +33,7 @@ A small native macOS app that tracks your work on GitHub in one window:
 
 - **Review requested** includes open PRs where GitHub is requesting your review.
 - If you leave comments or request changes, GitPulse keeps the PR in the list until you approve it or the PR closes/merges.
+- PRs you authored or are assigned to stay only in **My pull requests**, even if you commented on them.
 - Approved PRs are removed from **Review requested** unless GitHub requests your review again.
 
 ## Merged pull requests

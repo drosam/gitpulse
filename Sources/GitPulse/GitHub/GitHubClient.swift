@@ -132,10 +132,12 @@ struct GitHubClient: Sendable {
 
         let viewer = payload.viewer.login
         seen = []
+        let myPRIDs = Set(myPRs.map(\.id))
         let reviewRequests = (payload.reviews.nodes + payload.reviewed.nodes + payload.commented.nodes)
             .compactMap { $0 }
             .filter { $0.latestReviewState(by: viewer) != "APPROVED" }
             .compactMap { $0.pullRequest }
+            .filter { !myPRIDs.contains($0.id) }
             .filter { seen.insert($0.id).inserted }
             .sorted { $0.updatedAt > $1.updatedAt }
 
