@@ -25,18 +25,39 @@ struct PRListView: View {
                     .frame(maxWidth: .infinity)
                 Spacer()
             } else {
-                List(pullRequests, selection: $selectedID) { pullRequest in
-                    PRRow(
-                        pullRequest: pullRequest,
-                        hasNotification: unreadURLs.contains(pullRequest.url),
-                        isHidden: hiddenURLs.contains(pullRequest.url)
-                    )
-                    .tag(pullRequest.id)
+                ScrollViewReader { proxy in
+                    List(pullRequests, selection: $selectedID) { pullRequest in
+                        PRRow(
+                            pullRequest: pullRequest,
+                            hasNotification: unreadURLs.contains(pullRequest.url),
+                            isHidden: hiddenURLs.contains(pullRequest.url)
+                        )
+                        .id(pullRequest.id)
+                        .tag(pullRequest.id)
+                    }
+                    .listStyle(.inset)
+                    .onChange(of: selectedID) { _, id in
+                        scrollToSelection(id, with: proxy)
+                    }
+                    .onChange(of: isActive) { _, active in
+                        if active {
+                            scrollToSelection(selectedID, with: proxy)
+                        }
+                    }
+                    .onChange(of: pullRequests.map(\.id)) { _, _ in
+                        scrollToSelection(selectedID, with: proxy)
+                    }
                 }
-                .listStyle(.inset)
             }
         }
         .frame(minWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func scrollToSelection(_ id: PullRequest.ID?, with proxy: ScrollViewProxy) {
+        guard isActive, let id, pullRequests.contains(where: { $0.id == id }) else { return }
+        withAnimation(.easeOut(duration: 0.12)) {
+            proxy.scrollTo(id, anchor: .center)
+        }
     }
 }
 
