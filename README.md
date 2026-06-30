@@ -24,6 +24,7 @@ A small native macOS app that tracks your work on GitHub in one window:
   - Turn notification sounds on/off
   - Show/hide Dock badge count
   - Show/hide unread dots
+  - Start GitPulse automatically when you log in
   - Check all matching repositories or only selected `owner/repo` repositories
   - Show hidden pull requests in lists
   - Restore hidden pull requests

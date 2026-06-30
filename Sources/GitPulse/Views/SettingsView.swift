@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(Session.self) private var session
     @Environment(AppSettings.self) private var settings
+    @State private var launchAtLoginError: String?
 
     var body: some View {
         @Bindable var settings = settings
@@ -13,6 +14,25 @@ struct SettingsView: View {
                 Toggle("Play notification sounds", isOn: $settings.playNotificationSounds)
                 Toggle("Show Dock badge count", isOn: $settings.showDockBadge)
                 Toggle("Show unread dots in the app and menu bar", isOn: $settings.showUnreadDots)
+            }
+
+            Section("General") {
+                Toggle("Start GitPulse at login", isOn: Binding(
+                    get: { settings.launchAtLogin },
+                    set: { enabled in
+                        launchAtLoginError = nil
+                        do {
+                            try settings.setLaunchAtLogin(enabled)
+                        } catch {
+                            launchAtLoginError = error.localizedDescription
+                        }
+                    }
+                ))
+                if let launchAtLoginError {
+                    Text("Could not update login item: \(launchAtLoginError)")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
             }
 
             Section("Repositories") {
@@ -77,7 +97,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding(20)
-        .frame(width: 520, height: 460)
+        .frame(width: 520, height: 520)
         .onChange(of: settings.showDockBadge) { _, _ in
             Task { await session.applySettingsChanged() }
         }

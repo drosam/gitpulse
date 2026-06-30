@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import ServiceManagement
 
 @Observable
 @MainActor
@@ -33,6 +34,10 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(showHiddenPullRequests, forKey: Self.showHiddenPullRequestsKey) }
     }
 
+    var launchAtLogin: Bool {
+        didSet { UserDefaults.standard.set(launchAtLogin, forKey: Self.launchAtLoginKey) }
+    }
+
     var repositoryScope: RepositoryScope {
         didSet { UserDefaults.standard.set(repositoryScope.rawValue, forKey: Self.repositoryScopeKey) }
     }
@@ -58,6 +63,7 @@ final class AppSettings {
     private static let showDockBadgeKey = "settings.showDockBadge"
     private static let showUnreadDotsKey = "settings.showUnreadDots"
     private static let showHiddenPullRequestsKey = "settings.showHiddenPullRequests"
+    private static let launchAtLoginKey = "settings.launchAtLogin"
     private static let repositoryScopeKey = "settings.repositoryScope"
     private static let selectedRepositoriesKey = "settings.selectedRepositories"
 
@@ -70,6 +76,17 @@ final class AppSettings {
         }
     }
 
+    func setLaunchAtLogin(_ enabled: Bool) throws {
+        if enabled {
+            if SMAppService.mainApp.status != .enabled {
+                try SMAppService.mainApp.register()
+            }
+        } else if SMAppService.mainApp.status == .enabled {
+            try SMAppService.mainApp.unregister()
+        }
+        launchAtLogin = enabled
+    }
+
     private init() {
         let defaults = UserDefaults.standard
         showNotificationBanners = defaults.object(forKey: Self.showNotificationBannersKey) as? Bool ?? true
@@ -77,6 +94,7 @@ final class AppSettings {
         showDockBadge = defaults.object(forKey: Self.showDockBadgeKey) as? Bool ?? true
         showUnreadDots = defaults.object(forKey: Self.showUnreadDotsKey) as? Bool ?? true
         showHiddenPullRequests = defaults.object(forKey: Self.showHiddenPullRequestsKey) as? Bool ?? false
+        launchAtLogin = SMAppService.mainApp.status == .enabled
         repositoryScope = RepositoryScope(rawValue: defaults.string(forKey: Self.repositoryScopeKey) ?? "") ?? .all
         selectedRepositoriesText = defaults.string(forKey: Self.selectedRepositoriesKey) ?? ""
     }

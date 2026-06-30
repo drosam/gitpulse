@@ -25,7 +25,7 @@ GitPulse is a native macOS SwiftUI menu bar app that tracks GitHub pull requests
 
 ## Code notes
 
-- Settings live in `Sources/GitPulse/AppSettings.swift`.
+- Settings live in `Sources/GitPulse/AppSettings.swift`, including launch-at-login via `SMAppService.mainApp`.
 - Runtime state and notification detection live in `Sources/GitPulse/Session.swift`.
 - GitHub GraphQL fetching/decoding lives in `Sources/GitPulse/GitHub/GitHubClient.swift`.
 - Main dashboard UI lives in `Sources/GitPulse/Views/ContentView.swift` and `Sources/GitPulse/Views/PRListView.swift`.
