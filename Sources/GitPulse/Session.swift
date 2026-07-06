@@ -13,6 +13,14 @@ final class Session {
         var id: URL { url }
     }
 
+    struct UnreadNotification: Identifiable, Codable, Hashable {
+        var id: String
+        var repository: String
+        var subtitle: String
+        var title: String
+        var createdAt: Date
+    }
+
     enum State {
         case signedOut
         case authorizing(DeviceFlow.Authorization)
@@ -27,6 +35,7 @@ final class Session {
     /// review request). Drives the menubar dot, dock badge, and per-row dot.
     /// Persisted, and cleared for a PR when the user opens it.
     private var unreadURLs: Set<URL> = []
+    private var unreadNotifications: [String: [UnreadNotification]] = [:]
     private(set) var hiddenPullRequests: [HiddenPullRequest] = []
     private var pendingMergedPullRequests: [PullRequest] = []
     private var lastMyPullRequestIDs: Set<PullRequest.ID> = []
@@ -55,6 +64,7 @@ final class Session {
     private static let autoRefreshInterval: Duration = .seconds(60)
     private static let activityKey = "lastActivityAt"
     private static let unreadKey = "unreadURLs"
+    private static let unreadNotificationsKey = "unreadNotifications"
     private static let mergedKey = "knownMergedIDs"
     private static let pendingMergedPullRequestsKey = "pendingMergedPullRequests"
     private static let lastMyPullRequestIDsKey = "lastMyPullRequestIDs"
@@ -68,6 +78,10 @@ final class Session {
         if let data = UserDefaults.standard.data(forKey: Self.unreadKey),
            let decoded = try? JSONDecoder().decode(Set<URL>.self, from: data) {
             unreadURLs = decoded
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.unreadNotificationsKey),
+           let decoded = try? JSONDecoder().decode([String: [UnreadNotification]].self, from: data) {
+            unreadNotifications = decoded
         }
         if let data = UserDefaults.standard.data(forKey: Self.hiddenPullRequestsKey),
            let decoded = try? JSONDecoder().decode([HiddenPullRequest].self, from: data) {
@@ -94,6 +108,12 @@ final class Session {
 
     /// PR html URLs with unacknowledged activity, for the per-row dot.
     var unreadPRURLs: Set<URL> { unreadURLs }
+    var unreadNotificationsByURL: [URL: [UnreadNotification]] {
+        Dictionary(uniqueKeysWithValues: unreadNotifications.compactMap { key, value in
+            guard let url = URL(string: key) else { return nil }
+            return (url, value)
+        })
+    }
     var hiddenPRURLs: Set<URL> { Set(hiddenPullRequests.map(\.url)) }
 
     private var visibleUnreadURLs: Set<URL> {
@@ -155,11 +175,13 @@ final class Session {
         knownMergedIDs = []
         hasSeededMerged = false
         unreadURLs = []
+        unreadNotifications = [:]
         hiddenPullRequests = []
         pendingMergedPullRequests = []
         lastMyPullRequestIDs = []
         UserDefaults.standard.removeObject(forKey: Self.activityKey)
         UserDefaults.standard.removeObject(forKey: Self.unreadKey)
+        UserDefaults.standard.removeObject(forKey: Self.unreadNotificationsKey)
         UserDefaults.standard.removeObject(forKey: Self.mergedKey)
         UserDefaults.standard.removeObject(forKey: Self.pendingMergedPullRequestsKey)
         UserDefaults.standard.removeObject(forKey: Self.lastMyPullRequestIDsKey)
@@ -173,6 +195,7 @@ final class Session {
     /// Called when the user opens a PR: clear its unread mark.
     func markRead(prURL: URL) {
         let removedUnread = unreadURLs.remove(prURL) != nil
+        unreadNotifications.removeValue(forKey: prURL.absoluteString)
         let removedMerged = pendingMergedPullRequests.contains { $0.url == prURL }
         pendingMergedPullRequests.removeAll { $0.url == prURL }
         guard removedUnread || removedMerged else { return }
@@ -207,6 +230,7 @@ final class Session {
         hiddenPullRequests.removeAll { $0.url == pullRequest.url }
         hiddenPullRequests.append(hidden)
         unreadURLs.remove(pullRequest.url)
+        unreadNotifications.removeValue(forKey: pullRequest.url.absoluteString)
         saveHiddenPullRequests()
         saveNotificationState()
         applyHiddenDisplayToCurrentState()
@@ -277,7 +301,7 @@ final class Session {
             lastCheckState[pr.id] = state
             let finished = state == .success || state == .failure || state == .error
             guard hasSeededChecks, finished, state != previous else { continue }
-            recordUnread(pr)
+            recordUnread(pr, subtitle: state == .success ? "Checks passed" : "Checks failed", id: "ci-\(pr.id)-\(state.rawValue)")
             if !isHidden(pr) {
                 Notifier.shared.postCheckResult(for: pr, passed: state == .success)
             }
@@ -294,7 +318,7 @@ final class Session {
             guard let newest = pr.activity.last?.createdAt else { continue }
             if let cursor = lastActivityAt[pr.id] {
                 for event in pr.activity where event.createdAt > cursor && event.author != dashboard.viewer {
-                    recordUnread(pr)
+                    recordUnread(pr, subtitle: activitySubtitle(for: event), id: "activity-\(pr.id)-\(event.createdAt.timeIntervalSince1970)", createdAt: event.createdAt)
                     if !isHidden(pr) {
                         Notifier.shared.postActivity(for: pr, event: event)
                     }
@@ -310,7 +334,7 @@ final class Session {
         let ids = Set(dashboard.reviewRequests.map(\.id))
         if hasSeededReviewRequests {
             for pr in dashboard.reviewRequests where !knownReviewRequestIDs.contains(pr.id) {
-                recordUnread(pr)
+                recordUnread(pr, subtitle: "Review requested", id: "review-request-\(pr.id)")
                 if !isHidden(pr) {
                     Notifier.shared.postReviewRequest(for: pr)
                 }
@@ -328,7 +352,7 @@ final class Session {
         let prs = dashboard.myPRs + dashboard.reviewRequests
         if hasSeededMergeQueue {
             for pr in prs where prsInMergeQueue.contains(pr.id) && !pr.isInMergeQueue && pr.mergeQueueState == nil {
-                recordUnread(pr)
+                recordUnread(pr, subtitle: "Removed from the merge queue", id: "queue-exit-\(pr.id)-\(pr.updatedAt.timeIntervalSince1970)", createdAt: pr.updatedAt)
                 if !isHidden(pr) {
                     Notifier.shared.postMergeQueueExit(for: pr)
                 }
@@ -344,7 +368,7 @@ final class Session {
         let ids = Set(dashboard.recentlyMerged.map(\.id))
         if hasSeededMerged {
             for pr in dashboard.recentlyMerged where !knownMergedIDs.contains(pr.id) && !isHidden(pr) {
-                recordUnread(pr)
+                recordUnread(pr, subtitle: "Merged", id: "merged-\(pr.id)", createdAt: pr.updatedAt)
                 pendingMergedPullRequests.removeAll { $0.id == pr.id }
                 pendingMergedPullRequests.append(pr)
                 Notifier.shared.postMerged(for: pr)
@@ -364,6 +388,10 @@ final class Session {
         lastCheckState = lastCheckState.filter { currentIDs.contains($0.key) }
         lastActivityAt = lastActivityAt.filter { currentIDs.contains($0.key) }
         unreadURLs = unreadURLs.filter { currentURLs.contains($0) }
+        unreadNotifications = unreadNotifications.filter { key, _ in
+            guard let url = URL(string: key) else { return false }
+            return currentURLs.contains(url)
+        }
         updateDockBadge()
     }
 
@@ -371,8 +399,36 @@ final class Session {
         hiddenPRURLs.contains(pullRequest.url)
     }
 
-    private func recordUnread(_ pullRequest: PullRequest) {
+    private func recordUnread(_ pullRequest: PullRequest, subtitle: String, id: String, createdAt: Date = Date()) {
         unreadURLs.insert(pullRequest.url)
+        let notification = UnreadNotification(
+            id: id,
+            repository: pullRequest.repository,
+            subtitle: subtitle,
+            title: pullRequest.title,
+            createdAt: createdAt
+        )
+        let key = pullRequest.url.absoluteString
+        var notifications = unreadNotifications[key] ?? []
+        notifications.removeAll { $0.id == id }
+        notifications.append(notification)
+        unreadNotifications[key] = notifications.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private func activitySubtitle(for event: PullRequest.ActivityEvent) -> String {
+        let action: String
+        switch event.kind {
+        case .comment:
+            action = "commented"
+        case .review(let state):
+            switch state {
+            case "APPROVED": action = "approved"
+            case "CHANGES_REQUESTED": action = "requested changes"
+            case "DISMISSED": action = "dismissed a review"
+            default: action = "reviewed"
+            }
+        }
+        return "\(event.author.githubMention) \(action)"
     }
 
     private func applyHiddenDisplayToCurrentState() {
@@ -424,6 +480,9 @@ final class Session {
         }
         if let data = try? JSONEncoder().encode(unreadURLs) {
             UserDefaults.standard.set(data, forKey: Self.unreadKey)
+        }
+        if let data = try? JSONEncoder().encode(unreadNotifications) {
+            UserDefaults.standard.set(data, forKey: Self.unreadNotificationsKey)
         }
         if let data = try? JSONEncoder().encode(knownMergedIDs) {
             UserDefaults.standard.set(data, forKey: Self.mergedKey)

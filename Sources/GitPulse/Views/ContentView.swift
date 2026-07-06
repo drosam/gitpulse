@@ -34,6 +34,7 @@ struct DashboardView: View {
     @State private var mySelectedID: PullRequest.ID?
     @State private var reviewSelectedID: PullRequest.ID?
     @State private var toastMessage: String?
+    @State private var notificationPanelPR: PullRequest?
     var dashboard: Dashboard
 
     var body: some View {
@@ -44,6 +45,25 @@ struct DashboardView: View {
                     Divider()
                 }
                 paneSplit
+            }
+
+            if let notificationPanelPR {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Unread notifications")
+                            .font(.headline)
+                        Spacer()
+                        Button("Close") { self.notificationPanelPR = nil }
+                            .keyboardShortcut(.cancelAction)
+                    }
+                    UnreadNotificationsView(notifications: notifications(for: notificationPanelPR), showsTitle: false)
+                }
+                .padding(12)
+                .frame(width: 330)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .shadow(radius: 18)
+                .padding(.bottom, 20)
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
 
             if let toastMessage {
@@ -67,7 +87,8 @@ struct DashboardView: View {
             onSpace: dismissSelected,
             onHide: toggleHideSelected,
             onToggleHiddenVisibility: toggleHiddenVisibility,
-            onCopy: copySelectedURL
+            onCopy: copySelectedURL,
+            onViewNotifications: showSelectedNotifications
         ))
         .onAppear { selectFirstIfNeeded() }
         .toolbar {
@@ -93,6 +114,7 @@ struct DashboardView: View {
                 systemImage: "arrow.triangle.pull",
                 pullRequests: dashboard.myPRs,
                 unreadURLs: settings.showUnreadDots ? session.unreadPRURLs : [],
+                unreadNotifications: session.unreadNotificationsByURL,
                 hiddenURLs: session.hiddenPRURLs,
                 isActive: activePane == .mine,
                 selectedID: Binding(
@@ -105,6 +127,7 @@ struct DashboardView: View {
                 systemImage: "eye",
                 pullRequests: dashboard.reviewRequests,
                 unreadURLs: settings.showUnreadDots ? session.unreadPRURLs : [],
+                unreadNotifications: session.unreadNotificationsByURL,
                 hiddenURLs: session.hiddenPRURLs,
                 isActive: activePane == .review,
                 selectedID: Binding(
@@ -155,6 +178,27 @@ struct DashboardView: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(pr.url.absoluteString, forType: .string)
         showToast("Copied PR URL")
+    }
+
+    private func showSelectedNotifications() {
+        guard let pr = activePRs.first(where: { $0.id == activeSelection }), session.unreadPRURLs.contains(pr.url) else {
+            showToast("No unread notifications")
+            return
+        }
+        notificationPanelPR = pr
+    }
+
+    private func notifications(for pullRequest: PullRequest) -> [Session.UnreadNotification] {
+        if let notifications = session.unreadNotificationsByURL[pullRequest.url], !notifications.isEmpty {
+            return notifications
+        }
+        return [.init(
+            id: "legacy-\(pullRequest.id)",
+            repository: pullRequest.repository,
+            subtitle: "Unread notification",
+            title: pullRequest.title,
+            createdAt: pullRequest.updatedAt
+        )]
     }
 
     private func showToast(_ message: String) {

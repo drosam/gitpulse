@@ -5,6 +5,7 @@ struct PRListView: View {
     var systemImage: String
     var pullRequests: [PullRequest]
     var unreadURLs: Set<URL> = []
+    var unreadNotifications: [URL: [Session.UnreadNotification]] = [:]
     var hiddenURLs: Set<URL> = []
     var isActive: Bool
     @Binding var selectedID: PullRequest.ID?
@@ -30,6 +31,7 @@ struct PRListView: View {
                         PRRow(
                             pullRequest: pullRequest,
                             hasNotification: unreadURLs.contains(pullRequest.url),
+                            unreadNotifications: notifications(for: pullRequest),
                             isHidden: hiddenURLs.contains(pullRequest.url)
                         )
                         .id(pullRequest.id)
@@ -59,14 +61,64 @@ struct PRListView: View {
             proxy.scrollTo(id, anchor: .center)
         }
     }
+
+    private func notifications(for pullRequest: PullRequest) -> [Session.UnreadNotification] {
+        if let notifications = unreadNotifications[pullRequest.url], !notifications.isEmpty {
+            return notifications
+        }
+        guard unreadURLs.contains(pullRequest.url) else { return [] }
+        return [.init(
+            id: "legacy-\(pullRequest.id)",
+            repository: pullRequest.repository,
+            subtitle: "Unread notification",
+            title: pullRequest.title,
+            createdAt: pullRequest.updatedAt
+        )]
+    }
+}
+
+struct UnreadNotificationsView: View {
+    var notifications: [Session.UnreadNotification]
+    var showsTitle = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if showsTitle {
+                Text("Unread notifications")
+                    .font(.headline)
+            }
+            ForEach(notifications) { notification in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(notification.repository)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(notification.subtitle)
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(notification.title)
+                        .font(.system(size: 13))
+                        .lineLimit(2)
+                    Text(notification.createdAt.formatted(.relative(presentation: .named)))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if notification.id != notifications.last?.id {
+                    Divider()
+                }
+            }
+        }
+        .padding(12)
+        .frame(width: 300, alignment: .leading)
+    }
 }
 
 struct PRRow: View {
     @Environment(\.openURL) private var openURL
     @Environment(Session.self) private var session
     @State private var isHovering = false
+    @State private var isShowingNotifications = false
     var pullRequest: PullRequest
     var hasNotification: Bool = false
+    var unreadNotifications: [Session.UnreadNotification] = []
     var isHidden: Bool = false
 
     var body: some View {
@@ -130,11 +182,19 @@ struct PRRow: View {
             Spacer(minLength: 8)
 
             if hasNotification {
-                Circle()
-                    .fill(.blue)
-                    .frame(width: 10, height: 10)
-                    .padding(.top, 4)
-                    .help("Unread notification — press space to dismiss")
+                Button {
+                    isShowingNotifications.toggle()
+                } label: {
+                    Circle()
+                        .fill(.blue)
+                        .frame(width: 10, height: 10)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
+                .help("Unread notification — click to view, press space to dismiss")
+                .popover(isPresented: $isShowingNotifications, arrowEdge: .trailing) {
+                    UnreadNotificationsView(notifications: unreadNotifications)
+                }
             }
 
             if pullRequest.commentCount > 0 {
@@ -473,6 +533,7 @@ struct KeyNavigator: NSViewRepresentable {
     var onHide: () -> Void
     var onToggleHiddenVisibility: () -> Void
     var onCopy: () -> Void
+    var onViewNotifications: () -> Void
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
@@ -498,6 +559,9 @@ struct KeyNavigator: NSViewRepresentable {
                 case 8 where event.modifierFlags.contains(.command):
                     coordinator.onCopy()
                     consume = true  // Command-C
+                case 9 where !event.modifierFlags.contains(.command):
+                    coordinator.onViewNotifications()
+                    consume = true  // V
                 default: break
                 }
             }
@@ -516,10 +580,11 @@ struct KeyNavigator: NSViewRepresentable {
         context.coordinator.onHide = onHide
         context.coordinator.onToggleHiddenVisibility = onToggleHiddenVisibility
         context.coordinator.onCopy = onCopy
+        context.coordinator.onViewNotifications = onViewNotifications
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onUp: onUp, onDown: onDown, onLeft: onLeft, onRight: onRight, onReturn: onReturn, onSpace: onSpace, onHide: onHide, onToggleHiddenVisibility: onToggleHiddenVisibility, onCopy: onCopy)
+        Coordinator(onUp: onUp, onDown: onDown, onLeft: onLeft, onRight: onRight, onReturn: onReturn, onSpace: onSpace, onHide: onHide, onToggleHiddenVisibility: onToggleHiddenVisibility, onCopy: onCopy, onViewNotifications: onViewNotifications)
     }
 
     class Coordinator {
@@ -532,10 +597,11 @@ struct KeyNavigator: NSViewRepresentable {
         var onHide: () -> Void
         var onToggleHiddenVisibility: () -> Void
         var onCopy: () -> Void
+        var onViewNotifications: () -> Void
         var monitor: Any?
 
-        init(onUp: @escaping () -> Void, onDown: @escaping () -> Void, onLeft: @escaping () -> Void, onRight: @escaping () -> Void, onReturn: @escaping () -> Void, onSpace: @escaping () -> Void, onHide: @escaping () -> Void, onToggleHiddenVisibility: @escaping () -> Void, onCopy: @escaping () -> Void) {
-            self.onUp = onUp; self.onDown = onDown; self.onLeft = onLeft; self.onRight = onRight; self.onReturn = onReturn; self.onSpace = onSpace; self.onHide = onHide; self.onToggleHiddenVisibility = onToggleHiddenVisibility; self.onCopy = onCopy
+        init(onUp: @escaping () -> Void, onDown: @escaping () -> Void, onLeft: @escaping () -> Void, onRight: @escaping () -> Void, onReturn: @escaping () -> Void, onSpace: @escaping () -> Void, onHide: @escaping () -> Void, onToggleHiddenVisibility: @escaping () -> Void, onCopy: @escaping () -> Void, onViewNotifications: @escaping () -> Void) {
+            self.onUp = onUp; self.onDown = onDown; self.onLeft = onLeft; self.onRight = onRight; self.onReturn = onReturn; self.onSpace = onSpace; self.onHide = onHide; self.onToggleHiddenVisibility = onToggleHiddenVisibility; self.onCopy = onCopy; self.onViewNotifications = onViewNotifications
         }
 
         deinit { monitor.map { NSEvent.removeMonitor($0) } }
