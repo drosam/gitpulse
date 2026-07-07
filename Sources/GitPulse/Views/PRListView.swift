@@ -79,35 +79,84 @@ struct PRListView: View {
 
 struct UnreadNotificationsView: View {
     var notifications: [Session.UnreadNotification]
+    var repository: String? = nil
+    var title: String? = nil
     var showsTitle = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if showsTitle {
-                Text("Unread notifications")
-                    .font(.headline)
+                header
             }
             ForEach(notifications) { notification in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(notification.repository)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(notification.subtitle)
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(notification.title)
-                        .font(.system(size: 13))
-                        .lineLimit(2)
-                    Text(notification.createdAt.formatted(.relative(presentation: .named)))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                if notification.id != notifications.last?.id {
-                    Divider()
-                }
+                notificationRow(notification)
             }
         }
         .padding(12)
-        .frame(width: 300, alignment: .leading)
+        .frame(width: 320, alignment: .leading)
+    }
+
+    private func notificationRow(_ notification: Session.UnreadNotification) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: iconName(for: notification.subtitle))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(iconColor(for: notification.subtitle))
+                .frame(width: 24, height: 24)
+                .background(iconColor(for: notification.subtitle).opacity(0.16), in: Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(notification.subtitle)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                Text(notification.createdAt.formatted(.relative(presentation: .named)))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func iconName(for subtitle: String) -> String {
+        let lowercased = subtitle.lowercased()
+        if lowercased.contains("merged") { return "arrow.triangle.merge" }
+        if lowercased.contains("approved") { return "checkmark.seal.fill" }
+        if lowercased.contains("requested changes") { return "xmark.seal.fill" }
+        if lowercased.contains("comment") { return "text.bubble.fill" }
+        if lowercased.contains("checks passed") { return "checkmark.circle.fill" }
+        if lowercased.contains("checks failed") { return "xmark.circle.fill" }
+        if lowercased.contains("review requested") { return "eye.fill" }
+        if lowercased.contains("queue") { return "arrow.uturn.backward.circle.fill" }
+        return "bell.fill"
+    }
+
+    private func iconColor(for subtitle: String) -> Color {
+        let lowercased = subtitle.lowercased()
+        if lowercased.contains("merged") { return .purple }
+        if lowercased.contains("approved") || lowercased.contains("checks passed") { return .green }
+        if lowercased.contains("requested changes") || lowercased.contains("checks failed") { return .red }
+        if lowercased.contains("comment") { return .blue }
+        if lowercased.contains("review requested") { return .orange }
+        return .secondary
+    }
+
+    @ViewBuilder
+    private var header: some View {
+        if let repository, let title {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(repository)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(title)
+                    .font(.headline)
+                    .lineLimit(2)
+            }
+        } else {
+            Text("Unread notifications")
+                .font(.headline)
+        }
     }
 }
 
@@ -193,7 +242,11 @@ struct PRRow: View {
                 .padding(.top, 4)
                 .help("Unread notification — click to view, press space to dismiss")
                 .popover(isPresented: $isShowingNotifications, arrowEdge: .trailing) {
-                    UnreadNotificationsView(notifications: unreadNotifications)
+                    UnreadNotificationsView(
+                        notifications: unreadNotifications,
+                        repository: pullRequest.repository,
+                        title: pullRequest.title
+                    )
                 }
             }
 

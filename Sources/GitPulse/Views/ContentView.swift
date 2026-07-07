@@ -48,20 +48,36 @@ struct DashboardView: View {
             }
 
             if let notificationPanelPR {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("Unread notifications")
-                            .font(.headline)
-                        Spacer()
-                        Button("Close") { self.notificationPanelPR = nil }
-                            .keyboardShortcut(.cancelAction)
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(notificationPanelPR.repository)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Text(notificationPanelPR.title)
+                                .font(.headline)
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 8)
+                        Button {
+                            self.notificationPanelPR = nil
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24, height: 24)
+                        }
+                        .buttonStyle(.plain)
+                        .background(Color.primary.opacity(0.08), in: Circle())
+                        .keyboardShortcut(.cancelAction)
                     }
                     UnreadNotificationsView(notifications: notifications(for: notificationPanelPR), showsTitle: false)
+                        .padding(-12)
                 }
-                .padding(12)
-                .frame(width: 330)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                .shadow(radius: 18)
+                .padding(16)
+                .frame(width: 360)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                .shadow(color: .black.opacity(0.24), radius: 20, y: 8)
                 .padding(.bottom, 20)
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
