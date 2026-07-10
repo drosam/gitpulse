@@ -17,6 +17,12 @@ struct SettingsView: View {
             }
 
             Section("General") {
+                Picker("Pull request order", selection: $settings.pullRequestSort) {
+                    ForEach(AppSettings.PullRequestSort.allCases) { sort in
+                        Text(sort.label).tag(sort)
+                    }
+                }
+
                 Toggle("Start GitPulse at login", isOn: Binding(
                     get: { settings.launchAtLogin },
                     set: { enabled in
@@ -103,6 +109,9 @@ struct SettingsView: View {
         }
         .onChange(of: settings.repositoryScope) { _, _ in
             Task { await session.applySettingsChanged(refresh: true) }
+        }
+        .onChange(of: settings.pullRequestSort) { _, _ in
+            Task { await session.applySettingsChanged() }
         }
         .onChange(of: settings.showHiddenPullRequests) { _, _ in
             Task { await session.applySettingsChanged(refresh: true) }

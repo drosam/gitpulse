@@ -14,6 +14,20 @@ final class AppSettings {
         var id: String { rawValue }
     }
 
+    enum PullRequestSort: String, CaseIterable, Identifiable {
+        case createdAtNewest
+        case updatedAtNewest
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .createdAtNewest: return "Created newest to oldest"
+            case .updatedAtNewest: return "Updated newest to oldest"
+            }
+        }
+    }
+
     var showNotificationBanners: Bool {
         didSet { UserDefaults.standard.set(showNotificationBanners, forKey: Self.showNotificationBannersKey) }
     }
@@ -42,6 +56,10 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(repositoryScope.rawValue, forKey: Self.repositoryScopeKey) }
     }
 
+    var pullRequestSort: PullRequestSort {
+        didSet { UserDefaults.standard.set(pullRequestSort.rawValue, forKey: Self.pullRequestSortKey) }
+    }
+
     /// Newline or comma separated `owner/name` repository names.
     var selectedRepositoriesText: String {
         didSet { UserDefaults.standard.set(selectedRepositoriesText, forKey: Self.selectedRepositoriesKey) }
@@ -65,6 +83,7 @@ final class AppSettings {
     private static let showHiddenPullRequestsKey = "settings.showHiddenPullRequests"
     private static let launchAtLoginKey = "settings.launchAtLogin"
     private static let repositoryScopeKey = "settings.repositoryScope"
+    private static let pullRequestSortKey = "settings.pullRequestSort"
     private static let selectedRepositoriesKey = "settings.selectedRepositories"
 
     private static func isValidRepository(_ repository: String) -> Bool {
@@ -96,6 +115,7 @@ final class AppSettings {
         showHiddenPullRequests = defaults.object(forKey: Self.showHiddenPullRequestsKey) as? Bool ?? false
         launchAtLogin = SMAppService.mainApp.status == .enabled
         repositoryScope = RepositoryScope(rawValue: defaults.string(forKey: Self.repositoryScopeKey) ?? "") ?? .all
+        pullRequestSort = PullRequestSort(rawValue: defaults.string(forKey: Self.pullRequestSortKey) ?? "") ?? .createdAtNewest
         selectedRepositoriesText = defaults.string(forKey: Self.selectedRepositoriesKey) ?? ""
     }
 }

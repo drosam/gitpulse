@@ -437,35 +437,35 @@ final class Session {
     }
 
     private func displayDashboard(_ dashboard: Dashboard) -> Dashboard {
-        if settings.showHiddenPullRequests {
-            return Dashboard(
-                viewer: dashboard.viewer,
-                myPRs: sortHiddenLast(mergedRows(in: dashboard)),
-                reviewRequests: sortHiddenLast(dashboard.reviewRequests),
-                recentlyMerged: dashboard.recentlyMerged
-            )
-        }
-        return filterHidden(dashboard)
+        Dashboard(
+            viewer: dashboard.viewer,
+            myPRs: displayPullRequests(mergedRows(in: dashboard)),
+            reviewRequests: displayPullRequests(dashboard.reviewRequests),
+            recentlyMerged: dashboard.recentlyMerged
+        )
     }
 
-    private func sortHiddenLast(_ pullRequests: [PullRequest]) -> [PullRequest] {
-        pullRequests.filter { !isHidden($0) } + pullRequests.filter { isHidden($0) }
+    private func displayPullRequests(_ pullRequests: [PullRequest]) -> [PullRequest] {
+        let sorted = sortPullRequests(pullRequests)
+        if settings.showHiddenPullRequests {
+            return sorted.filter { !isHidden($0) } + sorted.filter { isHidden($0) }
+        }
+        return sorted.filter { !isHidden($0) }
+    }
+
+    private func sortPullRequests(_ pullRequests: [PullRequest]) -> [PullRequest] {
+        switch settings.pullRequestSort {
+        case .createdAtNewest:
+            return pullRequests.sorted { $0.createdAt > $1.createdAt }
+        case .updatedAtNewest:
+            return pullRequests.sorted { $0.updatedAt > $1.updatedAt }
+        }
     }
 
     private func mergedRows(in dashboard: Dashboard) -> [PullRequest] {
         let openIDs = Set(dashboard.myPRs.map(\.id))
         let pending = pendingMergedPullRequests.filter { !openIDs.contains($0.id) && unreadURLs.contains($0.url) }
         return dashboard.myPRs + pending
-    }
-
-    private func filterHidden(_ dashboard: Dashboard) -> Dashboard {
-        let hiddenURLs = Set(hiddenPullRequests.map(\.url))
-        return Dashboard(
-            viewer: dashboard.viewer,
-            myPRs: mergedRows(in: dashboard).filter { !hiddenURLs.contains($0.url) },
-            reviewRequests: dashboard.reviewRequests.filter { !hiddenURLs.contains($0.url) },
-            recentlyMerged: dashboard.recentlyMerged.filter { !hiddenURLs.contains($0.url) }
-        )
     }
 
     private func saveHiddenPullRequests() {

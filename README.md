@@ -10,6 +10,7 @@ A small native macOS app that tracks your work on GitHub in one window:
 ## Features
 
 - Two-pane dashboard, refreshed automatically every 60 seconds (`⌘R` to refresh manually)
+- Pull request lists default to created newest-to-oldest; Settings can switch to updated newest-to-oldest
 - Click a row or press Return to open the selected PR in your browser
 - Keyboard navigation: arrow keys move between rows/panes, `V` shows unread notification details for the selected PR, Space clears an unread dot, `⌘C` copies the selected PR URL, `H` hides/restores the selected PR, `⌘H` toggles showing hidden PRs
 - Each row shows draft state, merged/merge-queue status, CI status (✓ / ✗ / running), head branch, labels, comment count, age, author, and review decision
