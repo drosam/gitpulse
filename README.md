@@ -1,11 +1,59 @@
 # GitPulse
 
-A small native macOS app that tracks your work on GitHub in one window:
+[![CI](https://github.com/drosam/gitpulse/actions/workflows/ci.yml/badge.svg)](https://github.com/drosam/gitpulse/actions/workflows/ci.yml) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) [![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+
+A small native macOS menu bar app that tracks your work on GitHub in one window:
 
 - **My pull requests** — open PRs you authored or are assigned to, plus unread merged PRs until opened
 - **Review requested** — open PRs waiting for your review, plus PRs you commented on or reviewed until you approve them; PRs already in **My pull requests** stay only there
 
-![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue) ![Swift 6](https://img.shields.io/badge/Swift-6-orange)
+![GitPulse dashboard showing My pull requests and Review requested panes](docs/screenshot.png)
+
+Native Swift and SwiftUI, no Electron, no servers, no telemetry. GitPulse talks only to GitHub.
+
+## Install
+
+> **Unsigned build.** GitPulse is not notarized by Apple. The Homebrew cask removes the quarantine flag for you. With the DMG or ZIP, right-click **GitPulse.app** and choose **Open** the first time.
+
+Requires macOS 15 (Sequoia) or later. Releases are universal (Apple silicon and Intel).
+
+### Homebrew (recommended)
+
+```sh
+brew install --cask drosam/tap/gitpulse
+```
+
+Upgrade with `brew upgrade --cask gitpulse`.
+
+### Download
+
+1. Download `GitPulse-<version>.dmg` or `.zip` and `SHA256SUMS.txt` from the [latest release](https://github.com/drosam/gitpulse/releases/latest), then verify:
+
+   ```sh
+   grep "GitPulse-<version>.zip" SHA256SUMS.txt | shasum -a 256 -c
+   gh attestation verify GitPulse-<version>.zip --repo drosam/gitpulse
+   ```
+
+   The attestation proves the file was built by this repository's release workflow.
+2. Drag **GitPulse.app** to `/Applications`.
+3. First launch only: right-click **GitPulse.app** → **Open**, or run:
+
+   ```sh
+   xattr -dr com.apple.quarantine /Applications/GitPulse.app
+   ```
+
+### Build from source
+
+Requires full Xcode 16 or later, selected with `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`. Command Line Tools alone are not enough: CLT 27 does not ship the plugin SwiftUI needs for `@State`.
+
+```sh
+git clone https://github.com/drosam/gitpulse.git
+cd gitpulse
+make install
+open -a GitPulse
+```
+
+This builds a release binary for your Mac, generates the icon, and installs an ad-hoc signed `/Applications/GitPulse.app`. Source builds show `dev (<commit>)` as their version.
 
 ## Features
 
@@ -30,6 +78,7 @@ A small native macOS app that tracks your work on GitHub in one window:
   - Show hidden pull requests in lists
   - Restore hidden pull requests
 - Lives in the menu bar: closing the window hides the Dock icon, the app keeps polling in the background
+- The menu bar menu shows the running version
 
 ## Review requests
 
@@ -54,21 +103,13 @@ A small native macOS app that tracks your work on GitHub in one window:
 - Hidden PRs can still show a row-level blue unread dot, but they do not drive the menu bar dot, Dock badge, notification banners, or sounds.
 - Restore one or all hidden PRs from **Settings… → Hidden Pull Requests**.
 
-## Install
+## Troubleshooting
 
-```sh
-make install
-open -a GitPulse
-```
+**`Refusing to load cask drosam/tap/gitpulse from untrusted tap`.** Homebrew 6 only loads third-party taps you trust. Run `brew trust drosam/tap`, then retry.
 
-This builds a release binary, generates the app icon, and installs `/Applications/GitPulse.app` (ad-hoc signed). Remove with `make uninstall`.
+**"GitPulse can't be opened" / "is damaged".** The app is unsigned. Install with Homebrew, or run `xattr -dr com.apple.quarantine /Applications/GitPulse.app`.
 
-### Requirements
-
-- macOS 15+
-- Swift 6 toolchain (Xcode 16+)
-
-For development, `swift run` works too (macOS banners are disabled there — they need a real app bundle).
+**No notification banners.** Allow GitPulse in System Settings → Notifications. GitPulse shows a banner in its window when permission is denied.
 
 ## Authentication
 
@@ -81,4 +122,49 @@ GitPulse resolves a GitHub token in this order:
 
 The device flow uses a registered OAuth app (client ID in `Sources/GitPulse/GitHub/DeviceFlow.swift`). No client secret is needed or shipped; tokens are stored only in the Keychain.
 
-The token needs the `repo` scope (covers private-repo search) and `read:org` (lets search see org PRs).
+The token needs the `repo` scope (covers private-repo search) and `read:org` (lets search see org PRs). GitPulse only reads; it never writes to GitHub. Classic personal access tokens with those scopes also work via `GITHUB_TOKEN`.
+
+## Privacy
+
+- The token stays in your environment, your login Keychain, or the GitHub CLI's store.
+- GitPulse sends requests only to `api.github.com` (GraphQL) and `github.com` (device-flow sign-in).
+- No analytics, telemetry, or third-party services.
+- Notification state and settings live in `~/Library/Preferences/dev.davidrosa.gitpulse.plist`.
+- Links are opened only when they point to `https://github.com`.
+
+See [SECURITY.md](SECURITY.md) to report a vulnerability.
+
+## Demo mode
+
+Launch with fictional data, without signing in, network access, or notifications:
+
+```sh
+open -a GitPulse --args --demo
+```
+
+Demo mode keeps its preferences separate from your real ones. It is used for the screenshot above.
+
+## Uninstall
+
+1. Remove the token GitPulse saved in the Keychain, if you used **Sign in with GitHub**:
+
+   ```sh
+   security delete-generic-password -s dev.davidrosa.gitpulse.github-token
+   ```
+
+2. Remove the app:
+
+   ```sh
+   brew uninstall --zap --cask gitpulse   # Homebrew
+   make uninstall                          # source install
+   ```
+
+`--zap` also deletes preferences and saved window state.
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+[MIT](LICENSE) © David Rosa Moncayo

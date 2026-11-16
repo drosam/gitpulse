@@ -1,0 +1,54 @@
+name: Bug report
+description: Something in GitPulse doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please don't include tokens, private repository names, or other sensitive data.
+        Security issues go through [private vulnerability reporting](https://github.com/drosam/gitpulse/security/advisories/new) instead.
+  - type: input
+    id: version
+    attributes:
+      label: GitPulse version
+      description: Shown at the top of the menu bar menu.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "15.3 (Apple silicon)"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install GitPulse?
+      options:
+        - Homebrew
+        - DMG / ZIP download
+        - Built from source
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots (redact private repos), error messages, how you authenticate (GITHUB_TOKEN / gh / sign-in).
