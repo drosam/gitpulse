@@ -1,10 +1,22 @@
+import GitPulseCore
 import SwiftUI
 
 @main
 struct GitPulseApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var session = Session()
-    @State private var settings = AppSettings.shared
+    @State private var session: Session
+    @State private var settings: AppSettings
+
+    init() {
+        if DemoMode.isEnabled {
+            let (session, settings) = DemoMode.makeSessionAndSettings()
+            _session = State(initialValue: session)
+            _settings = State(initialValue: settings)
+        } else {
+            _session = State(initialValue: Session())
+            _settings = State(initialValue: AppSettings.shared)
+        }
+    }
 
     var body: some Scene {
         Window("GitPulse", id: "main") {
@@ -72,30 +84,6 @@ struct GitPulseApp: App {
     }()
 }
 
-struct MenuBarMenu: View {
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.openSettings) private var openSettings
-
-    var body: some View {
-        Button("Open GitPulse") {
-            NSApp.setActivationPolicy(.regular)
-            openWindow(id: "main")
-            NSApp.activate(ignoringOtherApps: true)
-        }
-        Button("Settings…") {
-            NSApp.setActivationPolicy(.regular)
-            openSettings()
-            NSApp.activate(ignoringOtherApps: true)
-        }
-        .keyboardShortcut(",", modifiers: .command)
-        Divider()
-        Button("Quit GitPulse") {
-            NSApp.terminate(nil)
-        }
-        .keyboardShortcut("q")
-    }
-}
-
 /// Starts as a regular app (also needed when launched via `swift run`, which
 /// has no bundle), then drops to accessory — menubar only, no Dock icon —
 /// whenever the main window closes.
@@ -104,7 +92,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
-        Notifier.shared.setUp()
+        if !DemoMode.isEnabled {
+            Notifier.shared.setUp()
+        }
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(windowWillClose(_:)),
@@ -114,6 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
+        guard !DemoMode.isEnabled else { return }
         Notifier.shared.refreshAuthorizationStatus()
     }
 

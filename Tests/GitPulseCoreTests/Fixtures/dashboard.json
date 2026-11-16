@@ -1,0 +1,192 @@
+{
+  "data": {
+    "viewer": { "login": "octocat" },
+    "mine": {
+      "nodes": [
+        {
+          "id": "PR_A",
+          "number": 101,
+          "title": "Add dark mode toggle",
+          "url": "https://github.com/acme/web/pull/101",
+          "state": "OPEN",
+          "isDraft": false,
+          "isInMergeQueue": false,
+          "reviewDecision": "APPROVED",
+          "additions": 120,
+          "deletions": 8,
+          "createdAt": "2026-01-10T09:00:00Z",
+          "updatedAt": "2026-01-12T10:00:00Z",
+          "headRefName": "feature/dark-mode",
+          "totalCommentsCount": 4,
+          "repository": { "nameWithOwner": "acme/web" },
+          "author": { "login": "octocat" },
+          "mergeQueueEntry": null,
+          "labels": { "nodes": [{ "name": "ui", "color": "1d76db" }, null] },
+          "commits": { "nodes": [{ "commit": { "statusCheckRollup": { "state": "SUCCESS" } } }] },
+          "comments": {
+            "nodes": [
+              { "author": { "login": "hubot" }, "createdAt": "2026-01-11T08:00:00Z" },
+              { "author": null, "createdAt": "2026-01-11T08:30:00Z" }
+            ]
+          },
+          "reviews": {
+            "nodes": [
+              { "author": { "login": "monalisa" }, "state": "APPROVED", "submittedAt": "2026-01-12T09:00:00Z" }
+            ]
+          },
+          "reviewThreads": {
+            "nodes": [
+              {
+                "comments": {
+                  "nodes": [
+                    { "author": { "login": "monalisa" }, "createdAt": "2026-01-11T12:00:00Z" }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        null,
+        {}
+      ]
+    },
+    "assigned": {
+      "nodes": [
+        {
+          "id": "PR_A",
+          "number": 101,
+          "title": "Add dark mode toggle",
+          "url": "https://github.com/acme/web/pull/101",
+          "updatedAt": "2026-01-12T10:00:00Z",
+          "repository": { "nameWithOwner": "acme/web" }
+        },
+        {
+          "id": "PR_B",
+          "number": 7,
+          "title": "Bump API timeout",
+          "url": "https://github.com/acme/api/pull/7",
+          "state": "OPEN",
+          "isDraft": true,
+          "isInMergeQueue": true,
+          "updatedAt": "2026-01-13T10:00:00Z",
+          "repository": { "nameWithOwner": "acme/api" },
+          "mergeQueueEntry": { "state": "QUEUED" },
+          "commits": { "nodes": [{ "commit": { "statusCheckRollup": { "state": "PENDING" } } }] }
+        }
+      ]
+    },
+    "reviews": {
+      "nodes": [
+        {
+          "id": "PR_C",
+          "number": 3,
+          "title": "Requested review",
+          "url": "https://github.com/acme/web/pull/3",
+          "updatedAt": "2026-01-05T10:00:00Z",
+          "repository": { "nameWithOwner": "acme/web" },
+          "author": { "login": "hubot" }
+        },
+        {
+          "id": "PR_A",
+          "number": 101,
+          "title": "Add dark mode toggle",
+          "url": "https://github.com/acme/web/pull/101",
+          "updatedAt": "2026-01-12T10:00:00Z",
+          "repository": { "nameWithOwner": "acme/web" }
+        }
+      ]
+    },
+    "reviewed": {
+      "nodes": [
+        {
+          "id": "PR_D",
+          "number": 4,
+          "title": "Already approved",
+          "url": "https://github.com/acme/web/pull/4",
+          "updatedAt": "2026-01-06T10:00:00Z",
+          "repository": { "nameWithOwner": "acme/web" },
+          "reviews": {
+            "nodes": [
+              { "author": { "login": "octocat" }, "state": "CHANGES_REQUESTED", "submittedAt": "2026-01-04T10:00:00Z" },
+              { "author": { "login": "octocat" }, "state": "APPROVED", "submittedAt": "2026-01-05T10:00:00Z" }
+            ]
+          }
+        },
+        {
+          "id": "PR_E",
+          "number": 5,
+          "title": "Approved then changes requested",
+          "url": "https://github.com/acme/web/pull/5",
+          "updatedAt": "2026-01-07T10:00:00Z",
+          "repository": { "nameWithOwner": "acme/web" },
+          "reviews": {
+            "nodes": [
+              { "author": { "login": "octocat" }, "state": "APPROVED", "submittedAt": "2026-01-04T10:00:00Z" },
+              { "author": { "login": "octocat" }, "state": "CHANGES_REQUESTED", "submittedAt": "2026-01-06T10:00:00Z" },
+              { "author": { "login": "monalisa" }, "state": "APPROVED", "submittedAt": "2026-01-06T11:00:00Z" }
+            ]
+          }
+        }
+      ]
+    },
+    "commented": {
+      "nodes": [
+        {
+          "id": "PR_C",
+          "number": 3,
+          "title": "Requested review",
+          "url": "https://github.com/acme/web/pull/3",
+          "updatedAt": "2026-01-05T10:00:00Z",
+          "repository": { "nameWithOwner": "acme/web" }
+        }
+      ]
+    },
+    "mergedAuthored": {
+      "nodes": [
+        {
+          "id": "PR_M1",
+          "number": 90,
+          "title": "Merged feature",
+          "url": "https://github.com/acme/web/pull/90",
+          "state": "MERGED",
+          "updatedAt": "2026-01-09T10:00:00Z",
+          "repository": { "nameWithOwner": "acme/web" }
+        }
+      ]
+    },
+    "mergedAssigned": {
+      "nodes": [
+        {
+          "id": "PR_M1",
+          "number": 90,
+          "title": "Merged feature",
+          "url": "https://github.com/acme/web/pull/90",
+          "state": "MERGED",
+          "updatedAt": "2026-01-09T10:00:00Z",
+          "repository": { "nameWithOwner": "acme/web" }
+        }
+      ]
+    },
+    "tracked": [
+      {
+        "id": "PR_M2",
+        "number": 91,
+        "title": "Tracked and merged",
+        "url": "https://github.com/acme/api/pull/91",
+        "state": "MERGED",
+        "updatedAt": "2026-01-10T10:00:00Z",
+        "repository": { "nameWithOwner": "acme/api" }
+      },
+      {
+        "id": "PR_X",
+        "number": 92,
+        "title": "Tracked but still open",
+        "url": "https://github.com/acme/api/pull/92",
+        "state": "OPEN",
+        "updatedAt": "2026-01-10T11:00:00Z",
+        "repository": { "nameWithOwner": "acme/api" }
+      },
+      null
+    ]
+  }
+}

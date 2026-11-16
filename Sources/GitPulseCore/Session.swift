@@ -3,7 +3,26 @@ import SwiftUI
 
 @Observable
 @MainActor
-final class Session {
+public final class Session {
+    /// External effects `Session` depends on; `.live` in the app, fakes in tests and demo mode.
+    struct Dependencies {
+        var notifier: any NotificationPosting
+        var dashboardSource: any DashboardSource
+        var tokens: TokenProvider
+        var deviceFlow: DeviceFlow
+        var setDockBadge: @MainActor (String?) -> Void
+
+        @MainActor static var live: Dependencies {
+            Dependencies(
+                notifier: Notifier.shared,
+                dashboardSource: GitHubDashboardSource(),
+                tokens: .keychain,
+                deviceFlow: DeviceFlow(),
+                setDockBadge: { NSApp.dockTile.badgeLabel = $0 }
+            )
+        }
+    }
+
     struct HiddenPullRequest: Identifiable, Codable, Hashable {
         var url: URL
         var title: String
@@ -40,7 +59,9 @@ final class Session {
     private var pendingMergedPullRequests: [PullRequest] = []
     private var lastMyPullRequestIDs: Set<PullRequest.ID> = []
     private var token: String?
-    private let settings = AppSettings.shared
+    @ObservationIgnored private let settings: AppSettings
+    @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let dependencies: Dependencies
     private var autoRefreshTask: Task<Void, Never>?
     /// Last seen head-commit check state per PR, to detect CI finishing.
     private var lastCheckState: [PullRequest.ID: PullRequest.CheckState] = [:]
@@ -63,48 +84,55 @@ final class Session {
 
     private static let autoRefreshInterval: Duration = .seconds(60)
     private static let activityKey = "lastActivityAt"
-    private static let unreadKey = "unreadURLs"
-    private static let unreadNotificationsKey = "unreadNotifications"
-    private static let mergedKey = "knownMergedIDs"
-    private static let pendingMergedPullRequestsKey = "pendingMergedPullRequests"
+    static let unreadKey = "unreadURLs"
+    static let unreadNotificationsKey = "unreadNotifications"
+    static let mergedKey = "knownMergedIDs"
+    static let pendingMergedPullRequestsKey = "pendingMergedPullRequests"
     private static let lastMyPullRequestIDsKey = "lastMyPullRequestIDs"
     private static let hiddenPullRequestsKey = "hiddenPullRequests"
 
-    init() {
-        if let data = UserDefaults.standard.data(forKey: Self.activityKey),
+    public convenience init() {
+        self.init(settings: .shared, defaults: .standard, dependencies: .live)
+    }
+
+    init(settings: AppSettings, defaults: UserDefaults, dependencies: Dependencies) {
+        self.settings = settings
+        self.defaults = defaults
+        self.dependencies = dependencies
+        if let data = defaults.data(forKey: Self.activityKey),
            let decoded = try? JSONDecoder().decode([String: Date].self, from: data) {
             lastActivityAt = decoded
         }
-        if let data = UserDefaults.standard.data(forKey: Self.unreadKey),
+        if let data = defaults.data(forKey: Self.unreadKey),
            let decoded = try? JSONDecoder().decode(Set<URL>.self, from: data) {
             unreadURLs = decoded
         }
-        if let data = UserDefaults.standard.data(forKey: Self.unreadNotificationsKey),
+        if let data = defaults.data(forKey: Self.unreadNotificationsKey),
            let decoded = try? JSONDecoder().decode([String: [UnreadNotification]].self, from: data) {
             unreadNotifications = decoded
         }
-        if let data = UserDefaults.standard.data(forKey: Self.hiddenPullRequestsKey),
+        if let data = defaults.data(forKey: Self.hiddenPullRequestsKey),
            let decoded = try? JSONDecoder().decode([HiddenPullRequest].self, from: data) {
             hiddenPullRequests = decoded
         }
-        if let data = UserDefaults.standard.data(forKey: Self.pendingMergedPullRequestsKey),
+        if let data = defaults.data(forKey: Self.pendingMergedPullRequestsKey),
            let decoded = try? JSONDecoder().decode([PullRequest].self, from: data) {
             pendingMergedPullRequests = decoded
         }
-        if let data = UserDefaults.standard.data(forKey: Self.lastMyPullRequestIDsKey),
+        if let data = defaults.data(forKey: Self.lastMyPullRequestIDsKey),
            let decoded = try? JSONDecoder().decode(Set<PullRequest.ID>.self, from: data) {
             lastMyPullRequestIDs = decoded
         }
         // A persisted set means a prior run already seeded; banner anything new
         // on the first refresh. A fresh install seeds silently instead.
-        if let data = UserDefaults.standard.data(forKey: Self.mergedKey),
+        if let data = defaults.data(forKey: Self.mergedKey),
            let decoded = try? JSONDecoder().decode(Set<PullRequest.ID>.self, from: data) {
             knownMergedIDs = decoded
             hasSeededMerged = true
         }
     }
 
-    var hasUnread: Bool { !visibleUnreadURLs.isEmpty }
+    public var hasUnread: Bool { !visibleUnreadURLs.isEmpty }
 
     /// PR html URLs with unacknowledged activity, for the per-row dot.
     var unreadPRURLs: Set<URL> { unreadURLs }
@@ -120,8 +148,8 @@ final class Session {
         unreadURLs.subtracting(hiddenPRURLs)
     }
 
-    func start() async {
-        guard let resolved = TokenStore.resolve() else {
+    public func start() async {
+        guard let resolved = dependencies.tokens.resolve() else {
             state = .signedOut
             return
         }
@@ -130,17 +158,13 @@ final class Session {
         startAutoRefresh()
     }
 
-    func refresh() async {
+    public func refresh() async {
         guard let token else { return }
         if case .ready = state {} else { state = .loading }
         isRefreshing = true
         defer { isRefreshing = false }
         do {
-            let dashboard = try await GitHubClient(
-                token: token,
-                repositories: settings.activeRepositories,
-                trackedPullRequestIDs: Array(lastMyPullRequestIDs)
-            ).fetchDashboard()
+            let dashboard = try await fetchDashboard(token: token)
             processActivity(in: dashboard)
             state = .ready(displayDashboard(dashboard))
         } catch {
@@ -150,10 +174,10 @@ final class Session {
 
     func signIn() async {
         do {
-            let authorization = try await DeviceFlow.requestCode()
+            let authorization = try await dependencies.deviceFlow.requestCode()
             state = .authorizing(authorization)
-            let newToken = try await DeviceFlow.pollForToken(authorization)
-            TokenStore.save(newToken)
+            let newToken = try await dependencies.deviceFlow.pollForToken(authorization)
+            dependencies.tokens.save(newToken)
             token = newToken
             await refresh()
             startAutoRefresh()
@@ -179,15 +203,15 @@ final class Session {
         hiddenPullRequests = []
         pendingMergedPullRequests = []
         lastMyPullRequestIDs = []
-        UserDefaults.standard.removeObject(forKey: Self.activityKey)
-        UserDefaults.standard.removeObject(forKey: Self.unreadKey)
-        UserDefaults.standard.removeObject(forKey: Self.unreadNotificationsKey)
-        UserDefaults.standard.removeObject(forKey: Self.mergedKey)
-        UserDefaults.standard.removeObject(forKey: Self.pendingMergedPullRequestsKey)
-        UserDefaults.standard.removeObject(forKey: Self.lastMyPullRequestIDsKey)
-        UserDefaults.standard.removeObject(forKey: Self.hiddenPullRequestsKey)
+        defaults.removeObject(forKey: Self.activityKey)
+        defaults.removeObject(forKey: Self.unreadKey)
+        defaults.removeObject(forKey: Self.unreadNotificationsKey)
+        defaults.removeObject(forKey: Self.mergedKey)
+        defaults.removeObject(forKey: Self.pendingMergedPullRequestsKey)
+        defaults.removeObject(forKey: Self.lastMyPullRequestIDsKey)
+        defaults.removeObject(forKey: Self.hiddenPullRequestsKey)
         updateDockBadge()
-        TokenStore.clear()
+        dependencies.tokens.clear()
         token = nil
         state = .signedOut
     }
@@ -267,12 +291,20 @@ final class Session {
 
     /// Unlike `refresh()`, keeps the current dashboard if the fetch fails,
     /// so a transient network error never replaces data with an error screen.
-    private func backgroundRefresh() async {
+    func backgroundRefresh() async {
         guard let token else { return }
-        if let dashboard = try? await GitHubClient(token: token, repositories: settings.activeRepositories).fetchDashboard() {
+        if let dashboard = try? await fetchDashboard(token: token) {
             processActivity(in: dashboard)
             state = .ready(displayDashboard(dashboard))
         }
+    }
+
+    private func fetchDashboard(token: String) async throws -> Dashboard {
+        try await dependencies.dashboardSource.fetchDashboard(
+            token: token,
+            repositories: settings.activeRepositories,
+            trackedPullRequestIDs: Array(lastMyPullRequestIDs)
+        )
     }
 
     /// Derives all local notifications from the dashboard — CI results, new
@@ -303,7 +335,7 @@ final class Session {
             guard hasSeededChecks, finished, state != previous else { continue }
             recordUnread(pr, subtitle: state == .success ? "Checks passed" : "Checks failed", id: "ci-\(pr.id)-\(state.rawValue)")
             if !isHidden(pr) {
-                Notifier.shared.postCheckResult(for: pr, passed: state == .success)
+                dependencies.notifier.postCheckResult(for: pr, passed: state == .success)
             }
         }
         hasSeededChecks = true
@@ -320,7 +352,7 @@ final class Session {
                 for event in pr.activity where event.createdAt > cursor && event.author != dashboard.viewer {
                     recordUnread(pr, subtitle: activitySubtitle(for: event), id: "activity-\(pr.id)-\(event.createdAt.timeIntervalSince1970)", createdAt: event.createdAt)
                     if !isHidden(pr) {
-                        Notifier.shared.postActivity(for: pr, event: event)
+                        dependencies.notifier.postActivity(for: pr, event: event)
                     }
                 }
             }
@@ -336,7 +368,7 @@ final class Session {
             for pr in dashboard.reviewRequests where !knownReviewRequestIDs.contains(pr.id) {
                 recordUnread(pr, subtitle: "Review requested", id: "review-request-\(pr.id)")
                 if !isHidden(pr) {
-                    Notifier.shared.postReviewRequest(for: pr)
+                    dependencies.notifier.postReviewRequest(for: pr)
                 }
             }
         }
@@ -354,7 +386,7 @@ final class Session {
             for pr in prs where prsInMergeQueue.contains(pr.id) && !pr.isInMergeQueue && pr.mergeQueueState == nil {
                 recordUnread(pr, subtitle: "Removed from the merge queue", id: "queue-exit-\(pr.id)-\(pr.updatedAt.timeIntervalSince1970)", createdAt: pr.updatedAt)
                 if !isHidden(pr) {
-                    Notifier.shared.postMergeQueueExit(for: pr)
+                    dependencies.notifier.postMergeQueueExit(for: pr)
                 }
             }
         }
@@ -371,7 +403,7 @@ final class Session {
                 recordUnread(pr, subtitle: "Merged", id: "merged-\(pr.id)", createdAt: pr.updatedAt)
                 pendingMergedPullRequests.removeAll { $0.id == pr.id }
                 pendingMergedPullRequests.append(pr)
-                Notifier.shared.postMerged(for: pr)
+                dependencies.notifier.postMerged(for: pr)
             }
         }
         knownMergedIDs.formUnion(ids)
@@ -470,32 +502,32 @@ final class Session {
 
     private func saveHiddenPullRequests() {
         if let data = try? JSONEncoder().encode(hiddenPullRequests) {
-            UserDefaults.standard.set(data, forKey: Self.hiddenPullRequestsKey)
+            defaults.set(data, forKey: Self.hiddenPullRequestsKey)
         }
     }
 
     private func saveNotificationState() {
         if let data = try? JSONEncoder().encode(lastActivityAt) {
-            UserDefaults.standard.set(data, forKey: Self.activityKey)
+            defaults.set(data, forKey: Self.activityKey)
         }
         if let data = try? JSONEncoder().encode(unreadURLs) {
-            UserDefaults.standard.set(data, forKey: Self.unreadKey)
+            defaults.set(data, forKey: Self.unreadKey)
         }
         if let data = try? JSONEncoder().encode(unreadNotifications) {
-            UserDefaults.standard.set(data, forKey: Self.unreadNotificationsKey)
+            defaults.set(data, forKey: Self.unreadNotificationsKey)
         }
         if let data = try? JSONEncoder().encode(knownMergedIDs) {
-            UserDefaults.standard.set(data, forKey: Self.mergedKey)
+            defaults.set(data, forKey: Self.mergedKey)
         }
         if let data = try? JSONEncoder().encode(pendingMergedPullRequests) {
-            UserDefaults.standard.set(data, forKey: Self.pendingMergedPullRequestsKey)
+            defaults.set(data, forKey: Self.pendingMergedPullRequestsKey)
         }
         if let data = try? JSONEncoder().encode(lastMyPullRequestIDs) {
-            UserDefaults.standard.set(data, forKey: Self.lastMyPullRequestIDsKey)
+            defaults.set(data, forKey: Self.lastMyPullRequestIDsKey)
         }
     }
 
     private func updateDockBadge() {
-        NSApp.dockTile.badgeLabel = settings.showDockBadge && !visibleUnreadURLs.isEmpty ? "\(visibleUnreadURLs.count)" : nil
+        dependencies.setDockBadge(settings.showDockBadge && !visibleUnreadURLs.isEmpty ? "\(visibleUnreadURLs.count)" : nil)
     }
 }

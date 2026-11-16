@@ -1,10 +1,12 @@
 import AppKit
 import SwiftUI
 
-struct ContentView: View {
+public struct ContentView: View {
     @Environment(Session.self) private var session
 
-    var body: some View {
+    public init() {}
+
+    public var body: some View {
         Group {
             switch session.state {
             case .signedOut:
@@ -185,7 +187,7 @@ struct DashboardView: View {
 
     private func openSelected() {
         guard let pr = activePRs.first(where: { $0.id == activeSelection }) else { return }
-        openURL(pr.url)
+        if SafeURL.isAllowed(pr.url) { openURL(pr.url) }
         session.markRead(prURL: pr.url)
     }
 

@@ -2,6 +2,16 @@ import AppKit
 import Observation
 import UserNotifications
 
+/// Banner sink used by `Session`; `Notifier` is the live implementation.
+@MainActor
+protocol NotificationPosting: AnyObject {
+    func postCheckResult(for pullRequest: PullRequest, passed: Bool)
+    func postActivity(for pullRequest: PullRequest, event: PullRequest.ActivityEvent)
+    func postMerged(for pullRequest: PullRequest)
+    func postMergeQueueExit(for pullRequest: PullRequest)
+    func postReviewRequest(for pullRequest: PullRequest)
+}
+
 /// Posts macOS notifications for new GitHub activity; clicking one opens
 /// the pull request in the browser.
 ///
@@ -9,8 +19,8 @@ import UserNotifications
 /// `swift run` (bare executable) and active in the installed .app.
 @Observable
 @MainActor
-final class Notifier: NSObject, UNUserNotificationCenterDelegate {
-    static let shared = Notifier()
+public final class Notifier: NSObject, UNUserNotificationCenterDelegate, NotificationPosting {
+    public static let shared = Notifier()
 
     @ObservationIgnored private let available = Bundle.main.bundleIdentifier != nil
     @ObservationIgnored private let settings = AppSettings.shared
@@ -19,7 +29,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// silently dropped by the system. Surfaced in the UI so it isn't a mystery.
     private(set) var authorizationDenied = false
 
-    func setUp() {
+    public func setUp() {
         guard available else { return }
         let center = UNUserNotificationCenter.current()
         center.delegate = self
@@ -30,7 +40,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     /// Re-reads the system authorization status; call on launch and whenever
     /// the app reactivates (the user may have flipped it in System Settings).
-    func refreshAuthorizationStatus() {
+    public func refreshAuthorizationStatus() {
         guard available else { return }
         UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
             let denied = settings.authorizationStatus == .denied
@@ -142,7 +152,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         UNUserNotificationCenter.current().add(request)
     }
 
-    nonisolated func userNotificationCenter(
+    public nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
@@ -154,12 +164,13 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    nonisolated func userNotificationCenter(
+    public nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
         guard let string = response.notification.request.content.userInfo["url"] as? String,
-              let url = URL(string: string) else { return }
+              let url = URL(string: string),
+              SafeURL.isAllowed(url) else { return }
         _ = await MainActor.run {
             NSWorkspace.shared.open(url)
         }

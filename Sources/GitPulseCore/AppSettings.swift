@@ -4,8 +4,10 @@ import ServiceManagement
 
 @Observable
 @MainActor
-final class AppSettings {
-    static let shared = AppSettings()
+public final class AppSettings {
+    public static let shared = AppSettings()
+
+    @ObservationIgnored private let defaults: UserDefaults
 
     enum RepositoryScope: String, CaseIterable, Identifiable {
         case all
@@ -29,40 +31,40 @@ final class AppSettings {
     }
 
     var showNotificationBanners: Bool {
-        didSet { UserDefaults.standard.set(showNotificationBanners, forKey: Self.showNotificationBannersKey) }
+        didSet { defaults.set(showNotificationBanners, forKey: Self.showNotificationBannersKey) }
     }
 
     var playNotificationSounds: Bool {
-        didSet { UserDefaults.standard.set(playNotificationSounds, forKey: Self.playNotificationSoundsKey) }
+        didSet { defaults.set(playNotificationSounds, forKey: Self.playNotificationSoundsKey) }
     }
 
     var showDockBadge: Bool {
-        didSet { UserDefaults.standard.set(showDockBadge, forKey: Self.showDockBadgeKey) }
+        didSet { defaults.set(showDockBadge, forKey: Self.showDockBadgeKey) }
     }
 
-    var showUnreadDots: Bool {
-        didSet { UserDefaults.standard.set(showUnreadDots, forKey: Self.showUnreadDotsKey) }
+    public var showUnreadDots: Bool {
+        didSet { defaults.set(showUnreadDots, forKey: Self.showUnreadDotsKey) }
     }
 
     var showHiddenPullRequests: Bool {
-        didSet { UserDefaults.standard.set(showHiddenPullRequests, forKey: Self.showHiddenPullRequestsKey) }
+        didSet { defaults.set(showHiddenPullRequests, forKey: Self.showHiddenPullRequestsKey) }
     }
 
     var launchAtLogin: Bool {
-        didSet { UserDefaults.standard.set(launchAtLogin, forKey: Self.launchAtLoginKey) }
+        didSet { defaults.set(launchAtLogin, forKey: Self.launchAtLoginKey) }
     }
 
     var repositoryScope: RepositoryScope {
-        didSet { UserDefaults.standard.set(repositoryScope.rawValue, forKey: Self.repositoryScopeKey) }
+        didSet { defaults.set(repositoryScope.rawValue, forKey: Self.repositoryScopeKey) }
     }
 
     var pullRequestSort: PullRequestSort {
-        didSet { UserDefaults.standard.set(pullRequestSort.rawValue, forKey: Self.pullRequestSortKey) }
+        didSet { defaults.set(pullRequestSort.rawValue, forKey: Self.pullRequestSortKey) }
     }
 
     /// Newline or comma separated `owner/name` repository names.
     var selectedRepositoriesText: String {
-        didSet { UserDefaults.standard.set(selectedRepositoriesText, forKey: Self.selectedRepositoriesKey) }
+        didSet { defaults.set(selectedRepositoriesText, forKey: Self.selectedRepositoriesKey) }
     }
 
     var selectedRepositories: [String] {
@@ -106,8 +108,8 @@ final class AppSettings {
         launchAtLogin = enabled
     }
 
-    private init() {
-        let defaults = UserDefaults.standard
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         showNotificationBanners = defaults.object(forKey: Self.showNotificationBannersKey) as? Bool ?? true
         playNotificationSounds = defaults.object(forKey: Self.playNotificationSoundsKey) as? Bool ?? true
         showDockBadge = defaults.object(forKey: Self.showDockBadgeKey) as? Bool ?? true

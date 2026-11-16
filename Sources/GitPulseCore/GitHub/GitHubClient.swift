@@ -11,14 +11,24 @@ struct Dashboard: Sendable {
     var recentlyMerged: [PullRequest]
 }
 
-enum GitHubError: LocalizedError {
-    case http(Int, String)
+enum GitHubError: LocalizedError, Equatable {
+    /// HTTP status plus GitHub's JSON `message`, when the body has one.
+    case http(Int, String?)
     case graphQL([String])
+
+    /// Builds an `.http` error without echoing raw response bodies into the UI.
+    static func http(status: Int, body: Data) -> GitHubError {
+        struct Message: Decodable { var message: String }
+        let message = (try? JSONDecoder().decode(Message.self, from: body))?.message
+        return .http(status, message)
+    }
 
     var errorDescription: String? {
         switch self {
-        case .http(let status, let body):
-            return "GitHub returned HTTP \(status): \(body)"
+        case .http(let status, let message?):
+            return "GitHub returned HTTP \(status): \(message)"
+        case .http(let status, nil):
+            return "GitHub returned HTTP \(status)"
         case .graphQL(let messages):
             return "GraphQL error: \(messages.joined(separator: "; "))"
         }
@@ -99,9 +109,13 @@ struct GitHubClient: Sendable {
         let (data, response) = try await URLSession.shared.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200 else {
-            throw GitHubError.http(status, String(decoding: data, as: UTF8.self))
+            throw GitHubError.http(status: status, body: data)
         }
+        return try Self.decodeDashboard(data)
+    }
 
+    /// Decodes a GraphQL dashboard response and applies the pane rules.
+    static func decodeDashboard(_ data: Data) throws -> Dashboard {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let envelope = try decoder.decode(Envelope.self, from: data)

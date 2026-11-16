@@ -1,11 +1,13 @@
 import SwiftUI
 
-struct SettingsView: View {
+public struct SettingsView: View {
     @Environment(Session.self) private var session
     @Environment(AppSettings.self) private var settings
     @State private var launchAtLoginError: String?
 
-    var body: some View {
+    public init() {}
+
+    public var body: some View {
         @Bindable var settings = settings
 
         Form {

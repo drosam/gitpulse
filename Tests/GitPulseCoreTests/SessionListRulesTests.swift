@@ -1,0 +1,105 @@
+import Foundation
+import Testing
+@testable import GitPulseCore
+
+@MainActor
+struct SessionListRulesTests {
+    private let older = makePR("old", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-09T00:00:00Z")
+    private let newer = makePR("new", createdAt: "2026-01-05T00:00:00Z", updatedAt: "2026-01-06T00:00:00Z")
+    private let third = makePR("third", createdAt: "2026-01-03T00:00:00Z", updatedAt: "2026-01-03T00:00:00Z")
+
+    @Test func sortsByCreatedNewestByDefault() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older, third, newer]))
+
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["new", "third", "old"])
+    }
+
+    @Test func sortsByUpdatedNewestWhenSelected() async {
+        let harness = SessionHarness()
+        harness.settings.pullRequestSort = .updatedAtNewest
+        await harness.load(makeDashboard(mine: [older, third, newer]))
+
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["old", "new", "third"])
+    }
+
+    @Test func hiddenPullRequestsAreRemovedByDefault() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older, third, newer]))
+        harness.session.hide(newer)
+
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["third", "old"])
+        #expect(harness.session.hiddenPullRequests.map(\.url) == [newer.url])
+    }
+
+    @Test func shownHiddenPullRequestsMoveToBottomKeepingOrder() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older, third, newer]))
+        harness.session.hide(newer)
+        harness.session.hide(third)
+        harness.settings.showHiddenPullRequests = true
+        await harness.session.applySettingsChanged(refresh: true)
+
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["old", "new", "third"])
+    }
+
+    @Test func unhideRestoresPullRequest() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older, newer]))
+        harness.session.hide(newer)
+        await harness.session.unhide(url: newer.url)
+
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["new", "old"])
+        #expect(harness.session.hiddenPullRequests.isEmpty)
+    }
+
+    @Test func pendingMergedRowStaysUntilRead() async {
+        let harness = SessionHarness()
+        let open = makePR("A")
+        let merged = makePR("A", isMerged: true, updatedAt: "2026-01-05T00:00:00Z")
+        await harness.load(makeDashboard(mine: [open]))
+        await harness.load(makeDashboard(merged: [merged]))
+
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["A"])
+        #expect(harness.dashboard?.myPRs.first?.isMerged == true)
+
+        await harness.session.refresh()
+        #expect(harness.dashboard?.myPRs.first?.isMerged == true)
+
+        harness.session.markRead(prURL: merged.url)
+        #expect(harness.dashboard?.myPRs.isEmpty == true)
+        #expect(!harness.session.hasUnread)
+    }
+
+    @Test func mergedPullRequestsNeverEnterReviewRequested() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [makePR("A")]))
+        await harness.load(makeDashboard(merged: [makePR("A", isMerged: true)]))
+
+        #expect(harness.dashboard?.reviewRequests.isEmpty == true)
+    }
+
+    @Test func backgroundRefreshPassesTrackedPullRequestIDs() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older, newer]))
+        await harness.session.backgroundRefresh()
+
+        let calls = await harness.source.trackedIDsPerCall
+        #expect(calls.last == ["new", "old"])
+    }
+
+    @Test func signOutClearsPersistedState() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older]))
+        harness.session.hide(older)
+        harness.session.signOut()
+
+        for key in ["lastActivityAt", "unreadURLs", "unreadNotifications", "knownMergedIDs",
+                    "pendingMergedPullRequests", "lastMyPullRequestIDs", "hiddenPullRequests"] {
+            #expect(harness.defaults.object(forKey: key) == nil, "\(key) should be cleared")
+        }
+        if case .signedOut = harness.session.state {} else {
+            Issue.record("Expected signed-out state")
+        }
+    }
+}

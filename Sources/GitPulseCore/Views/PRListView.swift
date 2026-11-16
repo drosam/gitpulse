@@ -295,7 +295,7 @@ struct PRRow: View {
     }
 
     private func open() {
-        openURL(pullRequest.url)
+        if SafeURL.isAllowed(pullRequest.url) { openURL(pullRequest.url) }
         session.markRead(prURL: pullRequest.url)
     }
 

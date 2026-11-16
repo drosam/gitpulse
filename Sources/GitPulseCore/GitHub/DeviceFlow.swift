@@ -6,7 +6,13 @@ import Foundation
 /// (github.com/settings/developers). The client ID is public by design;
 /// device flow needs no client secret.
 struct DeviceFlow: Sendable {
+    typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+
     static let clientID = "Ov23liJSAbMeX2jhuqpd"
+
+    var transport: Transport = { try await URLSession.shared.data(for: $0) }
+    var sleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+    var now: @Sendable () -> Date = { Date() }
 
     /// `repo` covers private-repo PR search; `read:org` lets search see org PRs.
     static let scopes = "repo read:org"
@@ -27,7 +33,7 @@ struct DeviceFlow: Sendable {
         }
     }
 
-    enum FlowError: LocalizedError {
+    enum FlowError: LocalizedError, Equatable {
         case denied
         case expired
         case unexpected(String)
@@ -42,16 +48,16 @@ struct DeviceFlow: Sendable {
     }
 
     /// Step 1: request a user code to display.
-    static func requestCode() async throws -> Authorization {
+    func requestCode() async throws -> Authorization {
         try await post(
             url: URL(string: "https://github.com/login/device/code")!,
-            body: ["client_id": clientID, "scope": scopes],
+            body: ["client_id": Self.clientID, "scope": Self.scopes],
             as: Authorization.self
         )
     }
 
     /// Step 2: poll until the user approves in the browser. Returns the access token.
-    static func pollForToken(_ authorization: Authorization) async throws -> String {
+    func pollForToken(_ authorization: Authorization) async throws -> String {
         struct PollResponse: Decodable {
             var accessToken: String?
             var error: String?
@@ -64,15 +70,15 @@ struct DeviceFlow: Sendable {
         }
 
         var interval = max(authorization.interval, 5)
-        let deadline = Date().addingTimeInterval(TimeInterval(authorization.expiresIn))
+        let deadline = now().addingTimeInterval(TimeInterval(authorization.expiresIn))
 
-        while Date() < deadline {
-            try await Task.sleep(for: .seconds(interval))
+        while now() < deadline {
+            try await sleep(.seconds(interval))
 
             let response = try await post(
                 url: URL(string: "https://github.com/login/oauth/access_token")!,
                 body: [
-                    "client_id": clientID,
+                    "client_id": Self.clientID,
                     "device_code": authorization.deviceCode,
                     "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                 ],
@@ -100,17 +106,31 @@ struct DeviceFlow: Sendable {
         throw FlowError.expired
     }
 
-    private static func post<T: Decodable>(url: URL, body: [String: String], as type: T.Type) async throws -> T {
+    private struct OAuthError: Decodable {
+        var error: String?
+        var errorDescription: String?
+
+        enum CodingKeys: String, CodingKey {
+            case error
+            case errorDescription = "error_description"
+        }
+    }
+
+    private func post<T: Decodable>(url: URL, body: [String: String], as type: T.Type) async throws -> T {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await transport(request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200 else {
-            throw FlowError.unexpected("HTTP \(status): \(String(decoding: data, as: UTF8.self))")
+            let parsed = try? JSONDecoder().decode(OAuthError.self, from: data)
+            if let detail = parsed?.errorDescription ?? parsed?.error {
+                throw FlowError.unexpected("HTTP \(status): \(detail)")
+            }
+            throw FlowError.unexpected("HTTP \(status)")
         }
         return try JSONDecoder().decode(T.self, from: data)
     }
