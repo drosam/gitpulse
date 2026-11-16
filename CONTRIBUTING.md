@@ -27,7 +27,7 @@ swift build
 | `Sources/GitPulse/GitPulseApp.swift` | `@main` app, scenes, menu bar icon, app delegate |
 | `Sources/GitPulseCore/` | Everything else: models, GitHub client, session logic, settings, notifications, views, demo data |
 | `Tests/GitPulseCoreTests/` | Swift Testing suites and JSON fixtures |
-| `Scripts/build-app.sh` | Builds and ad-hoc signs `GitPulse.app` (used by `make install` and CI) |
+| `Scripts/build-app.sh` | Builds and ad-hoc signs `GitPulse.app` (used by `make app`/`dev`/`install` and CI) |
 | `Scripts/changelog-section.sh` | Extracts a version's release notes from `CHANGELOG.md` |
 | `packaging/homebrew/gitpulse.rb` | Reference copy of the Homebrew cask |
 
@@ -36,12 +36,17 @@ swift build
 ```sh
 swift build          # debug build
 make test            # swift test
-make install         # build GitPulse.app and copy it to /Applications
-make demo            # launch the installed app with fictional data
+make dev             # build .build/app/GitPulse.app and open it in place
+make demo            # same, launched with fictional data (--demo)
+make install         # build and copy to /Applications (refused if installed via Homebrew)
 make uninstall
 ```
 
 `swift run` works too, but macOS banners are disabled there because they need a real app bundle.
+
+### Developing with the Homebrew version installed
+
+Use `make dev` / `make demo`, not `make install`: installing over `/Applications/GitPulse.app` would desync the cask, so the Makefile refuses. Quit the installed GitPulse first; both copies share the bundle ID, settings, and Keychain token.
 
 ### Tests
 
@@ -56,7 +61,7 @@ Never call real GitHub from tests. Inject a `DashboardSource`, `TokenProvider`, 
 
 ### Demo mode and screenshots
 
-`open -a GitPulse --args --demo` loads `DemoData` (fictional `acme/*` and `globex/*` repositories). It does no network, Keychain, or notification work and uses a separate preferences domain. Use it for README screenshots (`screencapture -w docs/screenshot.png`) so no private repository names leak.
+`make demo` (or `open .build/app/GitPulse.app --args --demo`) loads `DemoData` (fictional `acme/*` and `globex/*` repositories). It does no network, Keychain, or notification work and uses a separate preferences domain. Use it for README screenshots (`screencapture -w docs/screenshot.png`) so no private repository names leak.
 
 ## Pull requests
 

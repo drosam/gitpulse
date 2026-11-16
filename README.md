@@ -53,7 +53,7 @@ make install
 open -a GitPulse
 ```
 
-This builds a release binary for your Mac, generates the icon, and installs an ad-hoc signed `/Applications/GitPulse.app`. Source builds show `dev (<commit>)` as their version.
+This builds a release binary for your Mac, generates the icon, and installs an ad-hoc signed `/Applications/GitPulse.app`. Source builds show `dev (<commit>)` as their version. If GitPulse is already installed with Homebrew, `make install` refuses; use `make dev` to run your build in place instead.
 
 ## Features
 

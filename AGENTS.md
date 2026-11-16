@@ -12,8 +12,9 @@ GitPulse is a native macOS SwiftUI menu bar app that tracks GitHub pull requests
 - Build debug: `swift build`
 - Test: `swift test` (or `make test`)
 - Build app bundle only: `make app` (`Scripts/build-app.sh`, output `.build/app/GitPulse.app`)
-- Build release/install app: `make install`
-- Launch installed app with fictional data: `make demo` (`--demo`)
+- Build and run the app in place (no install): `make dev`
+- Same with fictional data: `make demo` (`--demo`)
+- Build release/install app: `make install` (refuses when installed via Homebrew cask)
 - Uninstall app: `make uninstall`
 - Launch installed app: `open -a GitPulse`
 
