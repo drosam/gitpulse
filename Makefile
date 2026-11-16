@@ -1,30 +1,22 @@
 APP_NAME := GitPulse
 PREFIX ?= /Applications
 APP := $(PREFIX)/$(APP_NAME).app
-BINARY := .build/release/$(APP_NAME)
-ICONSET := .build/AppIcon.iconset
-ICNS := .build/AppIcon.icns
+BUILT_APP := .build/app/$(APP_NAME).app
 
-.PHONY: build icon install uninstall run clean
+.PHONY: build test app install uninstall run demo clean
 
 build:
 	swift build -c release
 
-icon: $(ICNS)
+test:
+	swift test
 
-$(ICNS): Support/genicon.swift
-	rm -rf "$(ICONSET)"
-	mkdir -p "$(ICONSET)"
-	swift Support/genicon.swift "$(ICONSET)"
-	iconutil -c icns "$(ICONSET)" -o "$(ICNS)"
+app:
+	Scripts/build-app.sh
 
-install: build $(ICNS)
+install: app
 	rm -rf "$(APP)"
-	mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
-	cp Support/Info.plist "$(APP)/Contents/Info.plist"
-	cp "$(BINARY)" "$(APP)/Contents/MacOS/$(APP_NAME)"
-	cp "$(ICNS)" "$(APP)/Contents/Resources/AppIcon.icns"
-	codesign --force --sign - "$(APP)"
+	ditto "$(BUILT_APP)" "$(APP)"
 	@echo "Installed $(APP). Launch with: open -a $(APP_NAME)"
 
 uninstall:
@@ -32,6 +24,9 @@ uninstall:
 
 run: install
 	open -a "$(APP_NAME)"
+
+demo:
+	open -a "$(APP)" --args --demo
 
 clean:
 	swift package clean
