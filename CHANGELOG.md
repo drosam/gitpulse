@@ -7,7 +7,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-11-15
+## [0.1.0] - 2026-11-16
 
 First public release.
 
