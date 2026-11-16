@@ -48,7 +48,10 @@ jobs:
       - name: Release notes from CHANGELOG.md
         run: |
           set -euo pipefail
-          Scripts/changelog-section.sh "$VERSION" > release-notes.md
+          # Prereleases (0.1.0-rc.1) may reuse their base version's section (0.1.0).
+          if ! Scripts/changelog-section.sh "$VERSION" > release-notes.md 2>/dev/null; then
+            Scripts/changelog-section.sh "${VERSION%%-*}" > release-notes.md
+          fi
           cat >> release-notes.md <<'EOF'
 
           ---
