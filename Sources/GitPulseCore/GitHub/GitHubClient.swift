@@ -106,7 +106,7 @@ struct GitHubClient: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(["query": dashboardQuery])
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await HTTP.session.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200 else {
             throw GitHubError.http(status: status, body: data)

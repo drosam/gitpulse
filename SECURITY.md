@@ -15,5 +15,6 @@ Only the latest release receives fixes.
 - The token comes from `GITHUB_TOKEN`, the macOS Keychain, `gh auth token`, or GitHub's OAuth device flow.
 - Device-flow tokens are stored only in your login Keychain (service `dev.davidrosa.gitpulse.github-token`).
 - The token is sent only to `api.github.com`. The device flow talks only to `github.com`.
+- Requests use no disk cache or cookie store. v0.1.0 cached requests, including the token, in `~/Library/Caches/dev.davidrosa.gitpulse`; later versions delete that folder and `~/Library/HTTPStorages/dev.davidrosa.gitpulse` at launch.
 - GitPulse has no servers, analytics, or telemetry.
 - Remove the Keychain item with `security delete-generic-password -s dev.davidrosa.gitpulse.github-token`.

@@ -127,6 +127,7 @@ The token needs the `repo` scope (covers private-repo search) and `read:org` (le
 ## Privacy
 
 - The token stays in your environment, your login Keychain, or the GitHub CLI's store.
+- Network requests use no disk cache or cookie store, so the token and responses are never written to `~/Library/Caches` or `~/Library/HTTPStorages`.
 - GitPulse sends requests only to `api.github.com` (GraphQL) and `github.com` (device-flow sign-in).
 - No analytics, telemetry, or third-party services.
 - Notification state and settings live in `~/Library/Preferences/dev.davidrosa.gitpulse.plist`.
@@ -159,7 +160,14 @@ Demo mode keeps its preferences separate from your real ones. It is used for the
    make uninstall                          # source install
    ```
 
-`--zap` also deletes preferences and saved window state.
+`--zap` also deletes preferences, saved window state and the network cache that v0.1.0 wrote.
+
+3. After `make uninstall`, delete the same files by hand:
+
+   ```sh
+   rm -rf ~/Library/Caches/dev.davidrosa.gitpulse ~/Library/HTTPStorages/dev.davidrosa.gitpulse*
+   defaults delete dev.davidrosa.gitpulse
+   ```
 
 ## Contributing
 

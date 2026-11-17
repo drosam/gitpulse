@@ -10,7 +10,7 @@ struct DeviceFlow: Sendable {
 
     static let clientID = "Ov23liJSAbMeX2jhuqpd"
 
-    var transport: Transport = { try await URLSession.shared.data(for: $0) }
+    var transport: Transport = { try await HTTP.session.data(for: $0) }
     var sleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     var now: @Sendable () -> Date = { Date() }
 

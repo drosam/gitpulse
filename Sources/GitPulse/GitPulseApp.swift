@@ -90,6 +90,7 @@ struct GitPulseApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        HTTP.purgeLegacyDiskStorage()
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         if !DemoMode.isEnabled {
