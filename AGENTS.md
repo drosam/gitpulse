@@ -44,7 +44,7 @@ GitPulse is a native macOS SwiftUI menu bar app that tracks GitHub pull requests
 - Activity notifications include top-level PR comments, submitted reviews, and inline review-thread comments fetched in `GitHubClient.swift`.
 - Unread blue dots are backed by `Session.unreadNotifications`; clicking the dot or pressing `V` shows the same summary as the macOS banner, not comment bodies.
 - Pull request list order is controlled by `AppSettings.pullRequestSort`; default is created newest-to-oldest, with an updated newest-to-oldest option.
-- **Review requested** combines `review-requested:@me`, `reviewed-by:@me`, and `commenter:@me`, excludes PRs already in **My pull requests**, and drops reviewed/commented PRs where the viewer's latest review state is `APPROVED` (a pending review request keeps the PR even after an approval).
+- **Review requested** combines `review-requested:@me`, `reviewed-by:@me`, and `commenter:@me`, excludes PRs already in **My pull requests**, and drops reviewed/commented PRs where the viewer's latest non-comment review state is `APPROVED` (from `reviews` plus `latestOpinionatedReviews`; a pending review request keeps the PR even after an approval).
 - README and `CHANGELOG.md` (`[Unreleased]`) should stay current when user-facing behavior changes.
 
 ## Git safety

@@ -103,6 +103,7 @@ struct GitHubClient: Sendable {
           ...prSummary
           comments(last: 10) { nodes { author { login } createdAt } }
           reviews(last: 30) { nodes { author { login } state submittedAt } }
+          latestOpinionatedReviews(first: 100) { nodes { author { login } state submittedAt } }
           reviewThreads(last: 10) { nodes { comments(last: 10) { nodes { author { login } createdAt } } } }
         }
         """
@@ -263,6 +264,8 @@ private struct PRNode: Decodable {
     var commits: CommitConnection?
     var comments: CommentConnection?
     var reviews: ReviewConnection?
+    /// Latest approval / change request per user, even when older than `reviews(last: 30)`.
+    var latestOpinionatedReviews: ReviewConnection?
     var reviewThreads: ReviewThreadConnection?
 
     struct Repository: Decodable { var nameWithOwner: String }
@@ -288,12 +291,14 @@ private struct PRNode: Decodable {
         struct Node: Decodable { var comments: CommentConnection? }
     }
 
+    /// The viewer's newest review that changes their verdict; comment-only and pending reviews don't.
     func latestReviewState(by login: String) -> String? {
-        reviews?.nodes
+        ((reviews?.nodes ?? []) + (latestOpinionatedReviews?.nodes ?? []))
             .compactMap { node -> (state: String, submittedAt: Date)? in
                 guard let node,
                       node.author?.login == login,
                       let state = node.state,
+                      state != "COMMENTED", state != "PENDING",
                       let submittedAt = node.submittedAt else { return nil }
                 return (state, submittedAt)
             }

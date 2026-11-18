@@ -57,7 +57,8 @@ struct DashboardDecodingTests {
 
     @Test func reviewRequestsApplyPaneRules() throws {
         // PR_C: requested + commented (deduped). PR_E: viewer's latest review is CHANGES_REQUESTED.
-        // PR_D: viewer's latest review is APPROVED. PR_A: already in My pull requests.
+        // PR_D: approved, then a comment-only review. PR_F: approval only in latestOpinionatedReviews.
+        // PR_A: already in My pull requests.
         #expect(try decode().reviewRequests.map(\.id) == ["PR_E", "PR_C"])
     }
 

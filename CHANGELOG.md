@@ -22,6 +22,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - A pull request you approved comes back to **Review requested** when the author requests your review again.
 - A pull request that newly appears with finished checks (for example, a new review request on a green pull request) no longer shows an extra "Checks passed/failed" banner.
 - Commenting on or reviewing someone else's pull request no longer shows a "Review requested" banner for it; the banner now appears only when GitHub requests your review, including a new request on a pull request you already reviewed.
+- A comment-only review after approving no longer puts the pull request back in **Review requested**, and an approval stays remembered on pull requests with many reviews.
 
 ### Security
 
