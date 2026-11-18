@@ -106,6 +106,9 @@ actor StubDashboardSource: DashboardSource {
     private var last: Dashboard?
     private(set) var trackedIDsPerCall: [[PullRequest.ID]] = []
     private var nextError: Error?
+    private var callsToHold = 0
+    private var held: [CheckedContinuation<Void, Never>] = []
+    var heldCount: Int { held.count }
 
     init(_ dashboards: [Dashboard] = []) {
         queue = dashboards
@@ -120,6 +123,16 @@ actor StubDashboardSource: DashboardSource {
         nextError = error
     }
 
+    /// Suspends the next `count` fetches (after picking their dashboards) until `release(_:)`.
+    func holdNext(_ count: Int) {
+        callsToHold = count
+    }
+
+    /// Resumes the held fetch at `index`, in call order.
+    func release(_ index: Int) {
+        held[index].resume()
+    }
+
     func fetchDashboard(token: String, repositories: [String], trackedPullRequestIDs: [PullRequest.ID]) async throws -> Dashboard {
         trackedIDsPerCall.append(trackedPullRequestIDs.sorted())
         if let error = nextError {
@@ -127,8 +140,17 @@ actor StubDashboardSource: DashboardSource {
             throw error
         }
         if !queue.isEmpty { last = queue.removeFirst() }
-        guard let last else { throw GitHubError.http(500, nil) }
-        return last
+        guard let result = last else { throw GitHubError.http(500, nil) }
+        if callsToHold > 0 {
+            callsToHold -= 1
+            await withCheckedContinuation { held.append($0) }
+        }
+        return result
+    }
+
+    /// Waits until `count` fetches are suspended by `holdNext(_:)`.
+    func waitForHeld(_ count: Int) async {
+        while held.count < count { await Task.yield() }
     }
 }
 

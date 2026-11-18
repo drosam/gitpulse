@@ -181,6 +181,43 @@ struct SessionListRulesTests {
         #expect(await harness.source.trackedIDsPerCall.count == callsAfterRevoke)
     }
 
+    @Test func olderResponseArrivingLastIsDropped() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older]))
+        await harness.source.enqueue(makeDashboard(mine: [older]))
+        await harness.source.enqueue(makeDashboard(mine: [older, newer]))
+        await harness.source.holdNext(2)
+
+        let first = Task { await harness.session.refresh() }
+        await harness.source.waitForHeld(1)
+        let second = Task { await harness.session.refresh() }
+        await harness.source.waitForHeld(2)
+        await harness.source.release(1)
+        await second.value
+        await harness.source.release(0)
+        await first.value
+
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["new", "old"])
+    }
+
+    @Test func refreshFinishingAfterSignOutIsDropped() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older]))
+        await harness.source.enqueue(makeDashboard(mine: [older, newer]))
+        await harness.source.holdNext(1)
+
+        let refresh = Task { await harness.session.refresh() }
+        await harness.source.waitForHeld(1)
+        harness.session.signOut()
+        await harness.source.release(0)
+        await refresh.value
+
+        if case .signedOut = harness.session.state {} else {
+            Issue.record("Expected signed-out state")
+        }
+        #expect(harness.defaults.object(forKey: "lastMyPullRequestIDs") == nil)
+    }
+
     @Test func signOutClearsPersistedState() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [older]))

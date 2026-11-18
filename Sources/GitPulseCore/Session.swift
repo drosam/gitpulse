@@ -54,6 +54,8 @@ public final class Session {
     private(set) var refreshError: String?
     /// Last fetched dashboard before hiding, sorting and merged rows; the display is derived from it.
     private var fetchedDashboard: Dashboard?
+    /// Bumped by every fetch and by sign-out, so a response that lands late is dropped.
+    private var refreshGeneration = 0
     /// PR html URLs with unacknowledged activity (a new comment, review, or
     /// review request). Drives the menubar dot, dock badge, and per-row dot.
     /// Persisted, and cleared for a PR when the user opens it.
@@ -235,6 +237,7 @@ public final class Session {
         lastMyPullRequestIDs = []
         fetchedDashboard = nil
         refreshError = nil
+        refreshGeneration += 1
         defaults.removeObject(forKey: Self.activityKey)
         defaults.removeObject(forKey: Self.unreadKey)
         defaults.removeObject(forKey: Self.unreadNotificationsKey)
@@ -331,7 +334,9 @@ public final class Session {
     /// Keeps a showing dashboard and reports the error beside it; a 401 returns to sign-in
     /// without wiping local unread and hidden state.
     private func handleRefreshFailure(_ error: Error) {
+        if error is CancellationError { return }
         if case GitHubError.http(401, _) = error {
+            refreshGeneration += 1
             autoRefreshTask?.cancel()
             autoRefreshTask = nil
             dependencies.tokens.clear()
@@ -354,23 +359,28 @@ public final class Session {
 
     private func fetchDashboard(token: String) async throws -> Dashboard {
         let repositories = settings.activeRepositories
+        refreshGeneration += 1
+        let generation = refreshGeneration
+        let dashboard: Dashboard
         do {
-            let dashboard = try await dependencies.dashboardSource.fetchDashboard(
+            dashboard = try await dependencies.dashboardSource.fetchDashboard(
                 token: token,
                 repositories: repositories,
                 trackedPullRequestIDs: Array(lastMyPullRequestIDs)
             )
-            rateLimitedUntil = nil
-            if let fetchedRepositories, fetchedRepositories != repositories {
-                hasSeededReviewRequests = false
-                hasSeededMerged = false
-            }
-            fetchedRepositories = repositories
-            return dashboard
-        } catch GitHubError.rateLimited(let until) {
-            rateLimitedUntil = until
-            throw GitHubError.rateLimited(until: until)
+        } catch {
+            guard generation == refreshGeneration else { throw CancellationError() }
+            if case GitHubError.rateLimited(let until) = error { rateLimitedUntil = until }
+            throw error
         }
+        guard generation == refreshGeneration else { throw CancellationError() }
+        rateLimitedUntil = nil
+        if let fetchedRepositories, fetchedRepositories != repositories {
+            hasSeededReviewRequests = false
+            hasSeededMerged = false
+        }
+        fetchedRepositories = repositories
+        return dashboard
     }
 
     /// Derives all local notifications from the dashboard — CI results, new
