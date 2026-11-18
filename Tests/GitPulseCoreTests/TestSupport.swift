@@ -155,8 +155,16 @@ actor StubDashboardSource: DashboardSource {
 }
 
 @MainActor
+final class BadgeRecorder {
+    private(set) var values: [String?] = []
+    var last: String? { values.last ?? nil }
+    func record(_ value: String?) { values.append(value) }
+}
+
+@MainActor
 struct SessionHarness {
     let defaults: UserDefaults
+    let badge = BadgeRecorder()
     let settings: AppSettings
     let notifier: RecordingNotifier
     let source: StubDashboardSource
@@ -175,7 +183,7 @@ struct SessionHarness {
                 dashboardSource: source,
                 tokens: TokenProvider(resolve: { "test-token" }, save: { _ in }, clear: {}),
                 deviceFlow: DeviceFlow(),
-                setDockBadge: { _ in }
+                setDockBadge: { [badge] in badge.record($0) }
             )
         )
     }

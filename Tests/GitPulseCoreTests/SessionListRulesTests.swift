@@ -273,6 +273,38 @@ struct SessionListRulesTests {
         #expect(harness.dashboard?.viewer == "octocat")
     }
 
+    @Test func hidingAndRestoringUnreadPullRequestUpdatesDockBadge() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older]))
+        let commented = makePR("old", activity: [comment(by: "hubot", at: "2026-01-10T00:00:00Z")])
+        await harness.source.enqueue(makeDashboard(mine: [commented]))
+        await harness.session.refresh()
+        #expect(harness.badge.last == "1")
+
+        harness.session.hide(commented)
+        #expect(harness.badge.last == nil)
+
+        let commentedAgain = makePR("old", activity: [
+            comment(by: "hubot", at: "2026-01-10T00:00:00Z"),
+            comment(by: "hubot", at: "2026-01-11T00:00:00Z"),
+        ])
+        await harness.source.enqueue(makeDashboard(mine: [commentedAgain]))
+        await harness.session.refresh()
+        #expect(harness.badge.last == nil)
+
+        harness.session.unhide(url: commentedAgain.url)
+        #expect(harness.badge.last == "1")
+
+        harness.session.hide(commentedAgain)
+        #expect(harness.badge.last == nil)
+        var thirdComment = commentedAgain
+        thirdComment.activity.append(comment(by: "hubot", at: "2026-01-12T00:00:00Z"))
+        await harness.source.enqueue(makeDashboard(mine: [thirdComment]))
+        await harness.session.refresh()
+        harness.session.unhideAll()
+        #expect(harness.badge.last == "1")
+    }
+
     @Test func signOutClearsPersistedState() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [older]))

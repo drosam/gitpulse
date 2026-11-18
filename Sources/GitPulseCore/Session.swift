@@ -329,6 +329,7 @@ public final class Session {
         unreadNotifications.removeValue(forKey: pullRequest.url.absoluteString)
         saveHiddenPullRequests()
         saveNotificationState()
+        updateDockBadge()
         updateDisplay()
     }
 
@@ -339,12 +340,14 @@ public final class Session {
     func unhide(url: URL) {
         hiddenPullRequests.removeAll { $0.url == url }
         saveHiddenPullRequests()
+        updateDockBadge()
         updateDisplay()
     }
 
     func unhideAll() {
         hiddenPullRequests = []
         saveHiddenPullRequests()
+        updateDockBadge()
         updateDisplay()
     }
 
