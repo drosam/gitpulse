@@ -71,6 +71,24 @@ struct SessionNotificationTests {
         #expect(harness.notifier.posts == [.reviewRequest("D")])
     }
 
+    @Test func widenedRepositoryScopeSeedsSilently() async {
+        let harness = SessionHarness()
+        harness.settings.repositoryScope = .selected
+        harness.settings.selectedRepositoriesText = "acme/web"
+        await harness.load(makeDashboard(reviews: [prC]))
+
+        harness.settings.repositoryScope = .all
+        let other = makePR("E", repository: "acme/api", author: "hubot")
+        let otherMerged = makePR("N", repository: "acme/api", isMerged: true)
+        await harness.load(makeDashboard(reviews: [prC, other], merged: [prM, otherMerged]))
+
+        #expect(harness.notifier.posts.isEmpty)
+        #expect(!harness.session.hasUnread)
+
+        await harness.load(makeDashboard(reviews: [prC, other, prD], merged: [prM, otherMerged]))
+        #expect(harness.notifier.posts == [.reviewRequest("D")])
+    }
+
     @Test func firstActivityOnQuietPullRequestPosts() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [makePR("A")]))

@@ -85,6 +85,8 @@ public final class Session {
     /// that lands while the app is closed banners once on the next launch.
     private var knownMergedIDs: Set<PullRequest.ID> = []
     private var hasSeededMerged = false
+    /// Repository filter of the last successful fetch; a change reseeds the ID baselines silently.
+    private var fetchedRepositories: [String]?
 
     private static let autoRefreshInterval: Duration = .seconds(120)
     private static let activityKey = "lastActivityAt"
@@ -308,13 +310,19 @@ public final class Session {
     }
 
     private func fetchDashboard(token: String) async throws -> Dashboard {
+        let repositories = settings.activeRepositories
         do {
             let dashboard = try await dependencies.dashboardSource.fetchDashboard(
                 token: token,
-                repositories: settings.activeRepositories,
+                repositories: repositories,
                 trackedPullRequestIDs: Array(lastMyPullRequestIDs)
             )
             rateLimitedUntil = nil
+            if let fetchedRepositories, fetchedRepositories != repositories {
+                hasSeededReviewRequests = false
+                hasSeededMerged = false
+            }
+            fetchedRepositories = repositories
             return dashboard
         } catch GitHubError.rateLimited(let until) {
             rateLimitedUntil = until
