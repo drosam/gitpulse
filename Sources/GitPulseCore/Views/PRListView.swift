@@ -413,58 +413,45 @@ struct PullRequestIcon: View {
     var isDraft: Bool
 
     var body: some View {
-        Canvas { context, size in
-            let scale = min(size.width, size.height) / 16
-            context.scaleBy(x: scale, y: scale)
-            let stroke = StrokeStyle(lineWidth: 1.5, lineCap: .round)
-
-            // Left rail: circle, line, circle.
-            context.stroke(circle(at: CGPoint(x: 3.25, y: 3.25)), with: .foreground, style: stroke)
-            context.stroke(line(x: 3.25, from: 5.6, to: 10.4), with: .foreground, style: stroke)
-            context.stroke(circle(at: CGPoint(x: 3.25, y: 12.75)), with: .foreground, style: stroke)
-
-            // Bottom-right circle.
-            context.stroke(circle(at: CGPoint(x: 12.75, y: 12.75)), with: .foreground, style: stroke)
-
-            if isDraft {
-                // Dotted right rail.
-                context.fill(dot(at: CGPoint(x: 12.75, y: 3.25)), with: .foreground)
-                context.fill(dot(at: CGPoint(x: 12.75, y: 7.5)), with: .foreground)
-            } else {
-                // Arrow curving from the top into the right rail.
-                context.stroke(Path { path in
-                    path.move(to: CGPoint(x: 8.0, y: 3.25))
-                    path.addLine(to: CGPoint(x: 10.5, y: 3.25))
-                    path.addQuadCurve(
-                        to: CGPoint(x: 12.75, y: 5.5),
-                        control: CGPoint(x: 12.75, y: 3.25)
-                    )
-                    path.addLine(to: CGPoint(x: 12.75, y: 10.4))
-                }, with: .foreground, style: stroke)
-                context.fill(Path { path in
-                    path.move(to: CGPoint(x: 8.3, y: 1.1))
-                    path.addLine(to: CGPoint(x: 8.3, y: 5.4))
-                    path.addLine(to: CGPoint(x: 6.0, y: 3.25))
-                    path.closeSubpath()
-                }, with: .foreground)
-            }
+        ZStack {
+            OcticonShape(path: strokes).stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+            OcticonShape(path: fills).fill()
         }
         .frame(width: 16, height: 16)
     }
 
-    private func circle(at center: CGPoint) -> Path {
-        Path(ellipseIn: CGRect(x: center.x - 1.5, y: center.y - 1.5, width: 3, height: 3))
-    }
-
-    private func dot(at center: CGPoint) -> Path {
-        Path(ellipseIn: CGRect(x: center.x - 1.25, y: center.y - 1.25, width: 2.5, height: 2.5))
-    }
-
-    private func line(x: CGFloat, from startY: CGFloat, to endY: CGFloat) -> Path {
-        Path { path in
-            path.move(to: CGPoint(x: x, y: startY))
-            path.addLine(to: CGPoint(x: x, y: endY))
+    private var strokes: Path {
+        var path = Path()
+        // Left rail: circle, line, circle; then the bottom-right circle.
+        path.addPath(.circle(at: CGPoint(x: 3.25, y: 3.25), radius: 1.5))
+        path.move(to: CGPoint(x: 3.25, y: 5.6))
+        path.addLine(to: CGPoint(x: 3.25, y: 10.4))
+        path.addPath(.circle(at: CGPoint(x: 3.25, y: 12.75), radius: 1.5))
+        path.addPath(.circle(at: CGPoint(x: 12.75, y: 12.75), radius: 1.5))
+        if !isDraft {
+            // Arrow shaft curving from the top into the right rail.
+            path.move(to: CGPoint(x: 8.0, y: 3.25))
+            path.addLine(to: CGPoint(x: 10.5, y: 3.25))
+            path.addQuadCurve(to: CGPoint(x: 12.75, y: 5.5), control: CGPoint(x: 12.75, y: 3.25))
+            path.addLine(to: CGPoint(x: 12.75, y: 10.4))
         }
+        return path
+    }
+
+    private var fills: Path {
+        var path = Path()
+        if isDraft {
+            // Dotted right rail.
+            path.addPath(.circle(at: CGPoint(x: 12.75, y: 3.25), radius: 1.25))
+            path.addPath(.circle(at: CGPoint(x: 12.75, y: 7.5), radius: 1.25))
+        } else {
+            // Arrowhead.
+            path.move(to: CGPoint(x: 8.3, y: 1.1))
+            path.addLine(to: CGPoint(x: 8.3, y: 5.4))
+            path.addLine(to: CGPoint(x: 6.0, y: 3.25))
+            path.closeSubpath()
+        }
+        return path
     }
 }
 
@@ -472,68 +459,74 @@ struct PullRequestIcon: View {
 /// Tinted via `foregroundStyle`.
 struct GitMergeIcon: View {
     var body: some View {
-        Canvas { context, size in
-            let scale = min(size.width, size.height) / 16
-            context.scaleBy(x: scale, y: scale)
-            let stroke = StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-
-            // Main rail from the top-left node to the bottom-left node.
-            context.stroke(Path { path in
-                path.move(to: CGPoint(x: 4.25, y: 5.35))
-                path.addLine(to: CGPoint(x: 4.25, y: 10.65))
-            }, with: .foreground, style: stroke)
-
-            // Curved branch from the top-left node into the right node.
-            context.stroke(Path { path in
-                path.move(to: CGPoint(x: 5.45, y: 5.15))
-                path.addCurve(
-                    to: CGPoint(x: 9.25, y: 8.25),
-                    control1: CGPoint(x: 6.25, y: 7.0),
-                    control2: CGPoint(x: 7.75, y: 8.25)
-                )
-                path.addLine(to: CGPoint(x: 10.65, y: 8.25))
-            }, with: .foreground, style: stroke)
-
-            context.stroke(circle(at: CGPoint(x: 5.0, y: 3.25)), with: .foreground, style: stroke)
-            context.stroke(circle(at: CGPoint(x: 4.25, y: 12.75)), with: .foreground, style: stroke)
-            context.stroke(circle(at: CGPoint(x: 12.75, y: 8.25)), with: .foreground, style: stroke)
-        }
-        .frame(width: 16, height: 16)
+        OcticonShape(path: strokes)
+            .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+            .frame(width: 16, height: 16)
     }
 
-    private func circle(at center: CGPoint) -> Path {
-        Path(ellipseIn: CGRect(x: center.x - 1.5, y: center.y - 1.5, width: 3, height: 3))
+    private var strokes: Path {
+        var path = Path()
+        // Main rail from the top-left node to the bottom-left node.
+        path.move(to: CGPoint(x: 4.25, y: 5.35))
+        path.addLine(to: CGPoint(x: 4.25, y: 10.65))
+        // Curved branch from the top-left node into the right node.
+        path.move(to: CGPoint(x: 5.45, y: 5.15))
+        path.addCurve(
+            to: CGPoint(x: 9.25, y: 8.25),
+            control1: CGPoint(x: 6.25, y: 7.0),
+            control2: CGPoint(x: 7.75, y: 8.25)
+        )
+        path.addLine(to: CGPoint(x: 10.65, y: 8.25))
+        path.addPath(.circle(at: CGPoint(x: 5.0, y: 3.25), radius: 1.5))
+        path.addPath(.circle(at: CGPoint(x: 4.25, y: 12.75), radius: 1.5))
+        path.addPath(.circle(at: CGPoint(x: 12.75, y: 8.25), radius: 1.5))
+        return path
     }
 }
 
 /// GitHub's `git-merge-queue` octicon, hand-traced in a 16×16 design space:
 /// a top-left dot above a left rail ending in a ring, a middle dot, and a
-/// bottom-right ring. Rings are strokes, not `.clear`-punched fills, which
-/// render magenta on an emphasized list selection. Tinted via `foregroundStyle`.
+/// bottom-right ring. Tinted via `foregroundStyle`.
 struct MergeQueueIcon: View {
     var body: some View {
-        Canvas { context, size in
-            let scale = min(size.width, size.height) / 16
-            context.scaleBy(x: scale, y: scale)
-
-            var solid = Path()
-            solid.addPath(dot(at: CGPoint(x: 3.75, y: 3.25), r: 1.25))   // top-left dot
-            solid.addPath(dot(at: CGPoint(x: 7.5, y: 6.0), r: 1.25))     // middle dot
-            // Left rail: rounded-top bar dropping into the bottom-left ring.
-            solid.addPath(Path(roundedRect: CGRect(x: 3.0, y: 7.0, width: 1.5, height: 4.0), cornerSize: CGSize(width: 0.75, height: 0.75)))
-            context.fill(solid, with: .foreground)
-
-            // Rings: radius 1.5 at width 1.5 spans the former 2.25 outer / 0.75 hole.
-            var rings = Path()
-            rings.addPath(dot(at: CGPoint(x: 3.75, y: 12.75), r: 1.5))   // bottom-left ring
-            rings.addPath(dot(at: CGPoint(x: 12.25, y: 8.5), r: 1.5))    // bottom-right ring
-            context.stroke(rings, with: .foreground, lineWidth: 1.5)
+        ZStack {
+            OcticonShape(path: fills).fill()
+            OcticonShape(path: rings).stroke(lineWidth: 1.5)
         }
         .frame(width: 16, height: 16)
     }
 
-    private func dot(at center: CGPoint, r: CGFloat) -> Path {
-        Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2))
+    private var fills: Path {
+        var path = Path()
+        path.addPath(.circle(at: CGPoint(x: 3.75, y: 3.25), radius: 1.25))   // top-left dot
+        path.addPath(.circle(at: CGPoint(x: 7.5, y: 6.0), radius: 1.25))     // middle dot
+        // Left rail: rounded-top bar dropping into the bottom-left ring.
+        path.addPath(Path(roundedRect: CGRect(x: 3.0, y: 7.0, width: 1.5, height: 4.0), cornerSize: CGSize(width: 0.75, height: 0.75)))
+        return path
+    }
+
+    private var rings: Path {
+        var path = Path()
+        path.addPath(.circle(at: CGPoint(x: 3.75, y: 12.75), radius: 1.5))   // bottom-left ring
+        path.addPath(.circle(at: CGPoint(x: 12.25, y: 8.5), radius: 1.5))    // bottom-right ring
+        return path
+    }
+}
+
+/// Octicon path drawn in a 16×16 design space, scaled to the frame. Plain
+/// shapes, not `Canvas`, which rendered magenta in list rows after a state change.
+private struct OcticonShape: Shape {
+    var path: Path
+
+    func path(in rect: CGRect) -> Path {
+        let scale = min(rect.width, rect.height) / 16
+        return path.applying(CGAffineTransform(scaleX: scale, y: scale))
+    }
+}
+
+private extension Path {
+    static func circle(at center: CGPoint, radius: CGFloat) -> Path {
+        Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2))
     }
 }
 
