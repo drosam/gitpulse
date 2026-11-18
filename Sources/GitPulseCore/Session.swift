@@ -67,6 +67,8 @@ public final class Session {
     private var rateLimitedUntil: Date?
     /// Last seen head-commit check state per PR, to detect CI finishing.
     private var lastCheckState: [PullRequest.ID: PullRequest.CheckState] = [:]
+    /// PRs on the dashboard in the previous pass, with or without checks; only these banner check results.
+    private var checkedPullRequestIDs: Set<PullRequest.ID> = []
     private var hasSeededChecks = false
     /// Newest activity timestamp seen per PR, to detect new comments/reviews.
     /// Persisted, so activity that arrives while the app is closed banners once
@@ -194,6 +196,7 @@ public final class Session {
         rateLimitedUntil = nil
         lastActivityAt = [:]
         lastCheckState = [:]
+        checkedPullRequestIDs = []
         knownReviewRequestIDs = []
         hasSeededReviewRequests = false
         hasSeededChecks = false
@@ -334,16 +337,18 @@ public final class Session {
     }
 
     /// Posts a banner when a dashboard PR's checks transition to a finished
-    /// state (passed / failed). The first pass after launch seeds silently so
-    /// we don't blast banners for old results.
+    /// state (passed / failed). The first pass after launch, and a PR newly
+    /// entering the dashboard, seed silently so we don't banner old results.
     private func detectFinishedChecks(in dashboard: Dashboard) {
         let prs = dashboard.myPRs + dashboard.reviewRequests
+        let previouslyShown = checkedPullRequestIDs
+        checkedPullRequestIDs = Set(prs.map(\.id))
         for pr in prs {
             guard let state = pr.checkState else { continue }
             let previous = lastCheckState[pr.id]
             lastCheckState[pr.id] = state
             let finished = state == .success || state == .failure || state == .error
-            guard hasSeededChecks, finished, state != previous else { continue }
+            guard hasSeededChecks, previouslyShown.contains(pr.id), finished, state != previous else { continue }
             recordUnread(pr, subtitle: state == .success ? "Checks passed" : "Checks failed", id: "ci-\(pr.id)-\(state.rawValue)")
             if !isHidden(pr) {
                 dependencies.notifier.postCheckResult(for: pr, passed: state == .success)

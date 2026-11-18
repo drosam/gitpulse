@@ -20,6 +20,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - A pull request that GitHub can no longer resolve (deleted repository, lost access) no longer makes every refresh fail until you sign out.
 - The first comment or review on a pull request with no earlier activity now shows a banner and an unread dot.
 - A pull request you approved comes back to **Review requested** when the author requests your review again.
+- A pull request that newly appears with finished checks (for example, a new review request on a green pull request) no longer shows an extra "Checks passed/failed" banner.
 
 ### Security
 

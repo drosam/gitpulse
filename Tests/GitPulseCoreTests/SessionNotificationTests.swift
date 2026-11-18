@@ -71,6 +71,23 @@ struct SessionNotificationTests {
         #expect(harness.notifier.posts == [.check("A", passed: false)])
     }
 
+    @Test func pullRequestEnteringWithFinishedChecksDoesNotPostCheckResult() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [makePR("A", checkState: .pending)]))
+        await harness.load(makeDashboard(mine: [makePR("A", checkState: .pending), makePR("D", checkState: .success)]))
+
+        #expect(harness.notifier.posts == [])
+    }
+
+    @Test func checksFinishingAfterNoChecksPostResult() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [makePR("A", checkState: .pending)]))
+        await harness.load(makeDashboard(mine: [makePR("A", checkState: .pending), makePR("D")]))
+        await harness.load(makeDashboard(mine: [makePR("A", checkState: .pending), makePR("D", checkState: .success)]))
+
+        #expect(harness.notifier.posts == [.check("D", passed: true)])
+    }
+
     @Test func unreadSummaryDescribesActivity() async throws {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [makePR("A", activity: prA1.activity)]))
