@@ -150,6 +150,37 @@ struct SessionListRulesTests {
         #expect(await harness.source.trackedIDsPerCall.count == callsAfterLimit + 1)
     }
 
+    @Test func failedBackgroundRefreshKeepsDashboardAndShowsError() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older]))
+        await harness.source.failNext(with: GitHubError.http(500, nil))
+        await harness.session.backgroundRefresh()
+
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["old"])
+        #expect(harness.session.refreshError != nil)
+
+        await harness.session.backgroundRefresh()
+        #expect(harness.session.refreshError == nil)
+    }
+
+    @Test func revokedTokenReturnsToSignInAndKeepsLocalState() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older, newer]))
+        harness.session.hide(newer)
+        await harness.source.failNext(with: GitHubError.http(401, "Bad credentials"))
+        await harness.session.backgroundRefresh()
+        let callsAfterRevoke = await harness.source.trackedIDsPerCall.count
+
+        if case .signedOut = harness.session.state {} else {
+            Issue.record("Expected signed-out state")
+        }
+        #expect(harness.session.refreshError != nil)
+        #expect(harness.session.hiddenPullRequests.map(\.url) == [newer.url])
+
+        await harness.session.refresh()
+        #expect(await harness.source.trackedIDsPerCall.count == callsAfterRevoke)
+    }
+
     @Test func signOutClearsPersistedState() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [older]))

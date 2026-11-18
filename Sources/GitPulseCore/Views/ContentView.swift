@@ -341,6 +341,10 @@ struct SignInView: View {
                 .font(.title)
             Text("Track your pull requests and review requests on GitHub.")
                 .foregroundStyle(.secondary)
+            if let refreshError = session.refreshError {
+                Label(refreshError, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            }
             Button("Sign in with GitHub") {
                 Task { await session.signIn() }
             }

@@ -50,7 +50,7 @@ public final class Session {
 
     private(set) var state: State = .signedOut
     private(set) var isRefreshing = false
-    /// Why the last manual refresh failed while a dashboard was showing; cleared by the next success.
+    /// Why the last refresh failed while a dashboard was showing, or why sign-in expired; cleared by the next success.
     private(set) var refreshError: String?
     /// Last fetched dashboard before hiding, sorting and merged rows; the display is derived from it.
     private var fetchedDashboard: Dashboard?
@@ -195,11 +195,7 @@ public final class Session {
             processActivity(in: dashboard)
             show(dashboard)
         } catch {
-            if fetchedDashboard == nil {
-                state = .failed(error.localizedDescription)
-            } else {
-                refreshError = error.localizedDescription
-            }
+            handleRefreshFailure(error)
         }
     }
 
@@ -320,14 +316,33 @@ public final class Session {
         }
     }
 
-    /// Unlike `refresh()`, keeps the current dashboard if the fetch fails,
-    /// so a transient network error never replaces data with an error screen.
     func backgroundRefresh() async {
         guard let token else { return }
         if let rateLimitedUntil, Date() < rateLimitedUntil { return }
-        if let dashboard = try? await fetchDashboard(token: token) {
+        do {
+            let dashboard = try await fetchDashboard(token: token)
             processActivity(in: dashboard)
             show(dashboard)
+        } catch {
+            handleRefreshFailure(error)
+        }
+    }
+
+    /// Keeps a showing dashboard and reports the error beside it; a 401 returns to sign-in
+    /// without wiping local unread and hidden state.
+    private func handleRefreshFailure(_ error: Error) {
+        if case GitHubError.http(401, _) = error {
+            autoRefreshTask?.cancel()
+            autoRefreshTask = nil
+            dependencies.tokens.clear()
+            token = nil
+            fetchedDashboard = nil
+            refreshError = "Your GitHub sign-in expired or was revoked. Sign in again."
+            state = .signedOut
+        } else if fetchedDashboard == nil {
+            state = .failed(error.localizedDescription)
+        } else {
+            refreshError = error.localizedDescription
         }
     }
 
