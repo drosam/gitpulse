@@ -15,6 +15,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 ### Fixed
 
 - Typing in Settings no longer triggers dashboard shortcuts: `H`, `V`, Space, Return and arrow keys reach the text field, and `⌘C` copies the selected text instead of a pull request URL.
+- A pull request that GitHub can no longer resolve (deleted repository, lost access) no longer makes every refresh fail until you sign out.
 
 ### Security
 

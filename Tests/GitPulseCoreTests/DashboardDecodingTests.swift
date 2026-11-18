@@ -67,6 +67,36 @@ struct DashboardDecodingTests {
         #expect(merged.allSatisfy { $0.isMerged })
     }
 
+    /// The dashboard fixture with `tracked` replaced and the given GraphQL errors added.
+    private func partialResponse(tracked: [Any], errors: [[String: Any]]) throws -> Data {
+        var envelope = try #require(try JSONSerialization.jsonObject(with: fixture("dashboard")) as? [String: Any])
+        var data = try #require(envelope["data"] as? [String: Any])
+        data["tracked"] = tracked
+        envelope["data"] = data
+        envelope["errors"] = errors
+        return try JSONSerialization.data(withJSONObject: envelope)
+    }
+
+    @Test func unresolvableTrackedPullRequestIsIgnored() throws {
+        let data = try partialResponse(tracked: [NSNull()], errors: [[
+            "type": "NOT_FOUND",
+            "path": ["tracked", 0],
+            "message": "Could not resolve to a node with the global id of 'PR_GONE'",
+        ]])
+        let dashboard = try GitHubClient.decodeDashboard(data)
+        #expect(dashboard.myPRs.map(\.id) == ["PR_B", "PR_A"])
+    }
+
+    @Test func partialErrorsOutsideTrackedStillThrow() throws {
+        let data = try partialResponse(tracked: [], errors: [[
+            "path": ["mine"],
+            "message": "Search failed",
+        ]])
+        #expect(throws: GitHubError.graphQL(["Search failed"])) {
+            try GitHubClient.decodeDashboard(data)
+        }
+    }
+
     @Test func graphQLErrorsThrow() throws {
         let data = Data(#"{"data": null, "errors": [{"message": "Something broke"}]}"#.utf8)
         #expect(throws: GitHubError.graphQL(["Something broke"])) {

@@ -119,7 +119,10 @@ struct GitHubClient: Sendable {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let envelope = try decoder.decode(Envelope.self, from: data)
-        if let errors = envelope.errors, !errors.isEmpty {
+        // A tracked PR that no longer resolves (deleted repo, lost access) comes back null with an
+        // error; ignore those so one dead ID cannot fail every refresh.
+        let errors = (envelope.errors ?? []).filter { envelope.data == nil || $0.field != "tracked" }
+        if !errors.isEmpty {
             throw GitHubError.graphQL(errors.map(\.message))
         }
         guard let payload = envelope.data else {
@@ -173,6 +176,18 @@ private struct Envelope: Decodable {
 
 private struct GraphQLError: Decodable {
     var message: String
+    /// Top-level response field the error belongs to, from the first `path` element.
+    var field: String?
+
+    private enum CodingKeys: String, CodingKey { case message, path }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        message = try container.decode(String.self, forKey: .message)
+        if var path = try? container.nestedUnkeyedContainer(forKey: .path) {
+            field = try? path.decode(String.self)
+        }
+    }
 }
 
 private struct Payload: Decodable {
