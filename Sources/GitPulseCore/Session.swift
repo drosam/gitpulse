@@ -236,6 +236,7 @@ public final class Session {
                 viewer: dashboard.viewer,
                 myPRs: dashboard.myPRs.filter { $0.url != prURL },
                 reviewRequests: dashboard.reviewRequests,
+                requestedReviewIDs: dashboard.requestedReviewIDs,
                 recentlyMerged: dashboard.recentlyMerged
             ))
         } else {
@@ -377,12 +378,13 @@ public final class Session {
         }
     }
 
-    /// Posts a banner when a PR newly appears in the review-requested pane.
+    /// Posts a banner when GitHub newly requests your review on a PR, not when a
+    /// PR enters the pane only because you commented or reviewed.
     /// Settings-independent replacement for the inbox review notification.
     private func detectNewReviewRequests(in dashboard: Dashboard) {
-        let ids = Set(dashboard.reviewRequests.map(\.id))
+        let ids = dashboard.requestedReviewIDs
         if hasSeededReviewRequests {
-            for pr in dashboard.reviewRequests where !knownReviewRequestIDs.contains(pr.id) {
+            for pr in dashboard.reviewRequests where ids.contains(pr.id) && !knownReviewRequestIDs.contains(pr.id) {
                 recordUnread(pr, subtitle: "Review requested", id: "review-request-\(pr.id)")
                 if !isHidden(pr) {
                     dependencies.notifier.postReviewRequest(for: pr)
@@ -490,6 +492,7 @@ public final class Session {
             viewer: dashboard.viewer,
             myPRs: displayPullRequests(mergedRows(in: dashboard)),
             reviewRequests: displayPullRequests(dashboard.reviewRequests),
+            requestedReviewIDs: dashboard.requestedReviewIDs,
             recentlyMerged: dashboard.recentlyMerged
         )
     }

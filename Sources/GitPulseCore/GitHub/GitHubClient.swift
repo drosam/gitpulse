@@ -3,8 +3,10 @@ import Foundation
 struct Dashboard: Sendable {
     var viewer: String
     var myPRs: [PullRequest]
-    var reviewRequests: [PullRequest]
     /// Open PRs where your review is requested, or where you participated and have not approved.
+    var reviewRequests: [PullRequest]
+    /// `reviewRequests` IDs from `review-requested:@me`; only these announce a review request.
+    var requestedReviewIDs: Set<PullRequest.ID>
     /// Recently merged PRs you authored or were assigned to. Not shown in any
     /// pane — used only to banner a merge once, since merged PRs drop out of the
     /// open searches.
@@ -189,6 +191,7 @@ struct GitHubClient: Sendable {
             viewer: viewer,
             myPRs: myPRs,
             reviewRequests: reviewRequests,
+            requestedReviewIDs: Set(payload.reviews.nodes.compactMap { $0?.pullRequest?.id }).subtracting(myPRIDs),
             recentlyMerged: recentlyMerged
         )
     }

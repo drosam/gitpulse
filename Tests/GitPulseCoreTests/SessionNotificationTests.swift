@@ -54,6 +54,23 @@ struct SessionNotificationTests {
         #expect(harness.notifier.posts.isEmpty)
     }
 
+    @Test func participatingWithoutRequestDoesNotPostReviewRequest() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(reviews: [prC]))
+        await harness.load(makeDashboard(reviews: [prC, prD], requested: [prC]))
+
+        #expect(harness.notifier.posts.isEmpty)
+        #expect(!harness.session.hasUnread)
+    }
+
+    @Test func reviewRequestedOnParticipatedPullRequestPosts() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(reviews: [prD], requested: []))
+        await harness.load(makeDashboard(reviews: [prD]))
+
+        #expect(harness.notifier.posts == [.reviewRequest("D")])
+    }
+
     @Test func firstActivityOnQuietPullRequestPosts() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [makePR("A")]))

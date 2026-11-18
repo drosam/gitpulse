@@ -61,6 +61,11 @@ struct DashboardDecodingTests {
         #expect(try decode().reviewRequests.map(\.id) == ["PR_E", "PR_C"])
     }
 
+    @Test func requestedReviewIDsComeOnlyFromReviewRequestedSearch() throws {
+        // PR_C is requested; PR_A is requested but already in My pull requests; PR_E is only reviewed.
+        #expect(try decode().requestedReviewIDs == ["PR_C"])
+    }
+
     @Test func approvedPullRequestReturnsWhenReviewIsRequestedAgain() throws {
         var envelope = try #require(try JSONSerialization.jsonObject(with: fixture("dashboard")) as? [String: Any])
         var data = try #require(envelope["data"] as? [String: Any])

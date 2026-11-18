@@ -64,9 +64,16 @@ func makeDashboard(
     viewer: String = "octocat",
     mine: [PullRequest] = [],
     reviews: [PullRequest] = [],
+    requested: [PullRequest]? = nil,
     merged: [PullRequest] = []
 ) -> Dashboard {
-    Dashboard(viewer: viewer, myPRs: mine, reviewRequests: reviews, recentlyMerged: merged)
+    Dashboard(
+        viewer: viewer,
+        myPRs: mine,
+        reviewRequests: reviews,
+        requestedReviewIDs: Set((requested ?? reviews).map(\.id)),
+        recentlyMerged: merged
+    )
 }
 
 @MainActor

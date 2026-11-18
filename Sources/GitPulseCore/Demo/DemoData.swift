@@ -7,7 +7,13 @@ enum DemoData {
     static func dashboard(now: Date = Date()) -> Dashboard {
         let mine = [darkMode(now), rateLimit(now), tomlConfig(now)]
         let reviews = [tracing(now), terraform(now), onboarding(now)]
-        return Dashboard(viewer: viewer, myPRs: mine, reviewRequests: reviews, recentlyMerged: [flakyTest(now)])
+        return Dashboard(
+            viewer: viewer,
+            myPRs: mine,
+            reviewRequests: reviews,
+            requestedReviewIDs: Set(reviews.map(\.id)),
+            recentlyMerged: [flakyTest(now)]
+        )
     }
 
     /// Unread state seeded before the first refresh so dots and the merged row show immediately.

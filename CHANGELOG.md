@@ -21,6 +21,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - The first comment or review on a pull request with no earlier activity now shows a banner and an unread dot.
 - A pull request you approved comes back to **Review requested** when the author requests your review again.
 - A pull request that newly appears with finished checks (for example, a new review request on a green pull request) no longer shows an extra "Checks passed/failed" banner.
+- Commenting on or reviewing someone else's pull request no longer shows a "Review requested" banner for it; the banner now appears only when GitHub requests your review, including a new request on a pull request you already reviewed.
 
 ### Security
 
