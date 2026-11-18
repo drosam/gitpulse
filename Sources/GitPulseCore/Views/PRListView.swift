@@ -289,7 +289,7 @@ struct PRRow: View {
             Button("Open on GitHub") { open() }
             if isHidden {
                 Button("Restore Pull Request") {
-                    Task { await session.unhide(url: pullRequest.url) }
+                    session.unhide(url: pullRequest.url)
                 }
             } else {
                 Button("Hide Pull Request") { session.hide(pullRequest) }

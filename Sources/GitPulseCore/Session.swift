@@ -50,6 +50,10 @@ public final class Session {
 
     private(set) var state: State = .signedOut
     private(set) var isRefreshing = false
+    /// Why the last manual refresh failed while a dashboard was showing; cleared by the next success.
+    private(set) var refreshError: String?
+    /// Last fetched dashboard before hiding, sorting and merged rows; the display is derived from it.
+    private var fetchedDashboard: Dashboard?
     /// PR html URLs with unacknowledged activity (a new comment, review, or
     /// review request). Drives the menubar dot, dock badge, and per-row dot.
     /// Persisted, and cleared for a PR when the user opens it.
@@ -189,9 +193,13 @@ public final class Session {
         do {
             let dashboard = try await fetchDashboard(token: token)
             processActivity(in: dashboard)
-            state = .ready(displayDashboard(dashboard))
+            show(dashboard)
         } catch {
-            state = .failed(error.localizedDescription)
+            if fetchedDashboard == nil {
+                state = .failed(error.localizedDescription)
+            } else {
+                refreshError = error.localizedDescription
+            }
         }
     }
 
@@ -229,6 +237,8 @@ public final class Session {
         hiddenPullRequests = []
         pendingMergedPullRequests = []
         lastMyPullRequestIDs = []
+        fetchedDashboard = nil
+        refreshError = nil
         defaults.removeObject(forKey: Self.activityKey)
         defaults.removeObject(forKey: Self.unreadKey)
         defaults.removeObject(forKey: Self.unreadNotificationsKey)
@@ -253,17 +263,7 @@ public final class Session {
         guard removedUnread || removedMerged else { return }
         updateDockBadge()
         saveNotificationState()
-        if removedMerged, case .ready(let dashboard) = state {
-            state = .ready(Dashboard(
-                viewer: dashboard.viewer,
-                myPRs: dashboard.myPRs.filter { $0.url != prURL },
-                reviewRequests: dashboard.reviewRequests,
-                requestedReviewIDs: dashboard.requestedReviewIDs,
-                recentlyMerged: dashboard.recentlyMerged
-            ))
-        } else {
-            applyHiddenDisplayToCurrentState()
-        }
+        updateDisplay()
     }
 
     func applySettingsChanged(refresh: Bool = false) async {
@@ -271,7 +271,7 @@ public final class Session {
         if refresh {
             await self.refresh()
         } else {
-            applyHiddenDisplayToCurrentState()
+            updateDisplay()
         }
     }
 
@@ -288,23 +288,23 @@ public final class Session {
         unreadNotifications.removeValue(forKey: pullRequest.url.absoluteString)
         saveHiddenPullRequests()
         saveNotificationState()
-        applyHiddenDisplayToCurrentState()
+        updateDisplay()
     }
 
-    func unhide(_ hiddenPullRequest: HiddenPullRequest) async {
-        await unhide(url: hiddenPullRequest.url)
+    func unhide(_ hiddenPullRequest: HiddenPullRequest) {
+        unhide(url: hiddenPullRequest.url)
     }
 
-    func unhide(url: URL) async {
+    func unhide(url: URL) {
         hiddenPullRequests.removeAll { $0.url == url }
         saveHiddenPullRequests()
-        await refresh()
+        updateDisplay()
     }
 
-    func unhideAll() async {
+    func unhideAll() {
         hiddenPullRequests = []
         saveHiddenPullRequests()
-        await refresh()
+        updateDisplay()
     }
 
     // MARK: - Auto-refresh
@@ -327,8 +327,14 @@ public final class Session {
         if let rateLimitedUntil, Date() < rateLimitedUntil { return }
         if let dashboard = try? await fetchDashboard(token: token) {
             processActivity(in: dashboard)
-            state = .ready(displayDashboard(dashboard))
+            show(dashboard)
         }
+    }
+
+    private func show(_ dashboard: Dashboard) {
+        fetchedDashboard = dashboard
+        refreshError = nil
+        updateDisplay()
     }
 
     private func fetchDashboard(token: String) async throws -> Dashboard {
@@ -515,9 +521,9 @@ public final class Session {
         return "\(event.author.githubMention) \(action)"
     }
 
-    private func applyHiddenDisplayToCurrentState() {
-        guard case .ready(let dashboard) = state else { return }
-        state = .ready(displayDashboard(dashboard))
+    private func updateDisplay() {
+        guard let fetchedDashboard else { return }
+        state = .ready(displayDashboard(fetchedDashboard))
     }
 
     private func displayDashboard(_ dashboard: Dashboard) -> Dashboard {

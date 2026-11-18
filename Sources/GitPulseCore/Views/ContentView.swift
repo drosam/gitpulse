@@ -48,6 +48,10 @@ struct DashboardView: View {
                     NotificationPermissionBanner()
                     Divider()
                 }
+                if let refreshError = session.refreshError {
+                    RefreshErrorBanner(message: refreshError)
+                    Divider()
+                }
                 paneSplit
             }
 
@@ -267,7 +271,7 @@ struct DashboardView: View {
         guard let index = prs.firstIndex(where: { $0.id == activeSelection }) else { return }
         let pr = prs[index]
         if session.hiddenPRURLs.contains(pr.url) {
-            Task { await session.unhide(url: pr.url) }
+            session.unhide(url: pr.url)
         } else {
             if !settings.showHiddenPullRequests {
                 let nextPRs = prs.enumerated().filter { $0.offset != index }.map(\.element)
@@ -299,6 +303,25 @@ struct NotificationPermissionBanner: View {
             }
             .font(.system(size: 12))
             .buttonStyle(.link)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color.orange.opacity(0.12))
+    }
+}
+
+/// A failed refresh shown above the last good dashboard instead of replacing it.
+struct RefreshErrorBanner: View {
+    var message: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text("Couldn't refresh: \(message)")
+                .font(.system(size: 12))
+                .lineLimit(2)
+            Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)

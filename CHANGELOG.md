@@ -28,6 +28,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - A review request that arrives while GitPulse is closed now shows a banner and an unread dot on the next launch.
 - Opening a pull request from its banner now clears its unread dot, the Dock badge count, and its merged row, like opening the row does.
 - Changing **Pull request order** in Settings reorders the lists right away instead of at the next refresh.
+- A failed refresh no longer replaces the dashboard with an error screen: the last pull requests stay visible with the error shown above them. Restoring a hidden pull request and showing hidden pull requests work offline and no longer refetch from GitHub.
 - A pull request's icon no longer turns into a magenta square after it enters the merge queue or merges while GitPulse is open.
 
 ### Security

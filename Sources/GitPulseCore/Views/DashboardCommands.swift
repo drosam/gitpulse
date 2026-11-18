@@ -21,7 +21,7 @@ public struct DashboardCommands: Commands {
                 get: { settings.showHiddenPullRequests },
                 set: { show in
                     settings.showHiddenPullRequests = show
-                    Task { await session.applySettingsChanged(refresh: true) }
+                    Task { await session.applySettingsChanged() }
                 }
             ))
             .keyboardShortcut("h", modifiers: [.command, .shift])

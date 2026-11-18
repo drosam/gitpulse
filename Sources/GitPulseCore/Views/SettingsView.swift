@@ -93,12 +93,12 @@ public struct SettingsView: View {
                             }
                             Spacer()
                             Button("Restore") {
-                                Task { await session.unhide(pullRequest) }
+                                session.unhide(pullRequest)
                             }
                         }
                     }
                     Button("Restore All") {
-                        Task { await session.unhideAll() }
+                        session.unhideAll()
                     }
                 }
             }
@@ -116,7 +116,7 @@ public struct SettingsView: View {
             Task { await session.applySettingsChanged() }
         }
         .onChange(of: settings.showHiddenPullRequests) { _, _ in
-            Task { await session.applySettingsChanged(refresh: true) }
+            Task { await session.applySettingsChanged() }
         }
     }
 }

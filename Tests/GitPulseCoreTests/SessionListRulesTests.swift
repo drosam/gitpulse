@@ -55,14 +55,39 @@ struct SessionListRulesTests {
         #expect(harness.dashboard?.myPRs.map(\.id) == ["old", "new", "third"])
     }
 
-    @Test func unhideRestoresPullRequest() async {
+    @Test func unhideRestoresPullRequestWhileOffline() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [older, newer]))
         harness.session.hide(newer)
-        await harness.session.unhide(url: newer.url)
+        await harness.source.failNext(with: GitHubError.http(500, nil))
+        harness.session.unhide(url: newer.url)
 
         #expect(harness.dashboard?.myPRs.map(\.id) == ["new", "old"])
         #expect(harness.session.hiddenPullRequests.isEmpty)
+    }
+
+    @Test func showingHiddenPullRequestsWorksWhileOffline() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older, newer]))
+        harness.session.hide(newer)
+        await harness.source.failNext(with: GitHubError.http(500, nil))
+        harness.settings.showHiddenPullRequests = true
+        await harness.session.applySettingsChanged()
+
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["old", "new"])
+    }
+
+    @Test func failedManualRefreshKeepsDashboardAndShowsError() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older]))
+        await harness.source.failNext(with: GitHubError.http(500, nil))
+        await harness.session.refresh()
+
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["old"])
+        #expect(harness.session.refreshError != nil)
+
+        await harness.session.refresh()
+        #expect(harness.session.refreshError == nil)
     }
 
     @Test func pendingMergedRowStaysUntilRead() async {
