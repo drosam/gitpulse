@@ -179,4 +179,15 @@ struct SessionNotificationTests {
 
         #expect(relaunched.notifier.posts == [.merged("M")])
     }
+
+    @Test func reviewRequestWhileClosedPostsOnNextLaunch() async {
+        let defaults = makeDefaults()
+        let first = SessionHarness(defaults: defaults)
+        await first.load(makeDashboard(reviews: [prC]))
+
+        let relaunched = SessionHarness(defaults: defaults)
+        await relaunched.load(makeDashboard(reviews: [prC, prD]))
+
+        #expect(relaunched.notifier.posts == [.reviewRequest("D")])
+    }
 }

@@ -75,6 +75,7 @@ public final class Session {
     /// on the next launch. A PR with no entry yet seeds silently.
     private var lastActivityAt: [PullRequest.ID: Date] = [:]
     /// PRs currently asking for your review, to banner ones that newly appear.
+    /// Persisted, so a request that arrives while the app is closed banners on the next launch.
     private var knownReviewRequestIDs: Set<PullRequest.ID> = []
     private var hasSeededReviewRequests = false
     /// PRs currently sitting in a merge queue, to banner ones that drop out
@@ -96,6 +97,7 @@ public final class Session {
     static let unreadKey = "unreadURLs"
     static let unreadNotificationsKey = "unreadNotifications"
     static let mergedKey = "knownMergedIDs"
+    private static let reviewRequestsKey = "knownReviewRequestIDs"
     private static let lastMergeCheckKey = "lastMergeCheck"
     /// Slack for clock skew and search indexing lag when comparing `mergedAt` to `lastMergeCheck`.
     private static let mergeCheckMargin: TimeInterval = 3600
@@ -143,6 +145,11 @@ public final class Session {
             hasSeededMerged = true
         }
         lastMergeCheck = defaults.object(forKey: Self.lastMergeCheckKey) as? Date
+        if let data = defaults.data(forKey: Self.reviewRequestsKey),
+           let decoded = try? JSONDecoder().decode(Set<PullRequest.ID>.self, from: data) {
+            knownReviewRequestIDs = decoded
+            hasSeededReviewRequests = true
+        }
     }
 
     public var hasUnread: Bool { !visibleUnreadURLs.isEmpty }
@@ -224,6 +231,7 @@ public final class Session {
         defaults.removeObject(forKey: Self.unreadNotificationsKey)
         defaults.removeObject(forKey: Self.mergedKey)
         defaults.removeObject(forKey: Self.lastMergeCheckKey)
+        defaults.removeObject(forKey: Self.reviewRequestsKey)
         defaults.removeObject(forKey: Self.pendingMergedPullRequestsKey)
         defaults.removeObject(forKey: Self.lastMyPullRequestIDsKey)
         defaults.removeObject(forKey: Self.hiddenPullRequestsKey)
@@ -560,6 +568,9 @@ public final class Session {
             defaults.set(data, forKey: Self.mergedKey)
         }
         defaults.set(lastMergeCheck, forKey: Self.lastMergeCheckKey)
+        if let data = try? JSONEncoder().encode(knownReviewRequestIDs) {
+            defaults.set(data, forKey: Self.reviewRequestsKey)
+        }
         if let data = try? JSONEncoder().encode(pendingMergedPullRequests) {
             defaults.set(data, forKey: Self.pendingMergedPullRequestsKey)
         }
