@@ -23,6 +23,18 @@ struct SessionListRulesTests {
         #expect(harness.dashboard?.myPRs.map(\.id) == ["old", "new", "third"])
     }
 
+    @Test func changingSortReordersWithoutFetching() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older, third, newer]))
+        let fetches = await harness.source.trackedIDsPerCall.count
+
+        harness.settings.pullRequestSort = .updatedAtNewest
+        await harness.session.applySettingsChanged()
+
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["old", "new", "third"])
+        #expect(await harness.source.trackedIDsPerCall.count == fetches)
+    }
+
     @Test func hiddenPullRequestsAreRemovedByDefault() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [older, third, newer]))

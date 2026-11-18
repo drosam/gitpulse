@@ -270,6 +270,8 @@ public final class Session {
         updateDockBadge()
         if refresh {
             await self.refresh()
+        } else {
+            applyHiddenDisplayToCurrentState()
         }
     }
 
