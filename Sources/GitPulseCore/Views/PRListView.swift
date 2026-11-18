@@ -508,30 +508,26 @@ struct GitMergeIcon: View {
 
 /// GitHub's `git-merge-queue` octicon, hand-traced in a 16×16 design space:
 /// a top-left dot above a left rail ending in a ring, a middle dot, and a
-/// bottom-right ring. Ring holes are erased with a `.clear` pass so the row
-/// background shows through. Tinted via `foregroundStyle`.
+/// bottom-right ring. Rings are strokes, not `.clear`-punched fills, which
+/// render magenta on an emphasized list selection. Tinted via `foregroundStyle`.
 struct MergeQueueIcon: View {
     var body: some View {
         Canvas { context, size in
             let scale = min(size.width, size.height) / 16
             context.scaleBy(x: scale, y: scale)
 
-            // Solid bodies: two dots, the left rail, and the two outer rings.
             var solid = Path()
             solid.addPath(dot(at: CGPoint(x: 3.75, y: 3.25), r: 1.25))   // top-left dot
             solid.addPath(dot(at: CGPoint(x: 7.5, y: 6.0), r: 1.25))     // middle dot
             // Left rail: rounded-top bar dropping into the bottom-left ring.
-            solid.addPath(Path(roundedRect: CGRect(x: 3.0, y: 7.0, width: 1.5, height: 6.0), cornerSize: CGSize(width: 0.75, height: 0.75)))
-            solid.addPath(dot(at: CGPoint(x: 3.75, y: 12.75), r: 2.25))  // bottom-left ring (outer)
-            solid.addPath(dot(at: CGPoint(x: 12.25, y: 8.5), r: 2.25))   // bottom-right ring (outer)
+            solid.addPath(Path(roundedRect: CGRect(x: 3.0, y: 7.0, width: 1.5, height: 4.0), cornerSize: CGSize(width: 0.75, height: 0.75)))
             context.fill(solid, with: .foreground)
 
-            // Punch the ring holes so the background shows through.
-            var holes = Path()
-            holes.addPath(dot(at: CGPoint(x: 3.75, y: 12.75), r: 0.75))
-            holes.addPath(dot(at: CGPoint(x: 12.25, y: 8.5), r: 0.75))
-            context.blendMode = .clear
-            context.fill(holes, with: .color(.black))
+            // Rings: radius 1.5 at width 1.5 spans the former 2.25 outer / 0.75 hole.
+            var rings = Path()
+            rings.addPath(dot(at: CGPoint(x: 3.75, y: 12.75), r: 1.5))   // bottom-left ring
+            rings.addPath(dot(at: CGPoint(x: 12.25, y: 8.5), r: 1.5))    // bottom-right ring
+            context.stroke(rings, with: .foreground, lineWidth: 1.5)
         }
         .frame(width: 16, height: 16)
     }
