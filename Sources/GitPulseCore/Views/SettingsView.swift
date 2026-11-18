@@ -52,7 +52,7 @@ public struct SettingsView: View {
 
                 Text("Selected repositories")
                     .font(.headline)
-                Text("Enter one full repository name per line, for example `owner/repo`. Applies to authored, assigned, review-requested, and merged PR checks.")
+                Text("Enter one repository per line, as `owner/repo` or its GitHub URL. Applies to authored, assigned, review-requested, and merged PR checks.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -62,8 +62,14 @@ public struct SettingsView: View {
                     .border(Color.secondary.opacity(0.25))
                     .disabled(settings.repositoryScope != .selected)
 
+                if settings.repositoryScope == .selected, !settings.rejectedRepositoryEntries.isEmpty {
+                    Text("Ignored: \(settings.rejectedRepositoryEntries.joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+
                 HStack {
-                    Text(settings.repositoryScope == .selected ? "Checking \(settings.selectedRepositories.count) repositories" : "Checking all matching repositories")
+                    Text(repositoryStatus)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Refresh Now") {
@@ -118,5 +124,12 @@ public struct SettingsView: View {
         .onChange(of: settings.showHiddenPullRequests) { _, _ in
             Task { await session.applySettingsChanged() }
         }
+    }
+
+    private var repositoryStatus: String {
+        guard settings.repositoryScope == .selected else { return "Checking all matching repositories" }
+        let count = settings.selectedRepositories.count
+        if count == 0 { return "No valid repositories, so no pull requests are checked" }
+        return count == 1 ? "Checking 1 repository" : "Checking \(count) repositories"
     }
 }

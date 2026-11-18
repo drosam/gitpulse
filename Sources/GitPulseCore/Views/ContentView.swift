@@ -134,7 +134,7 @@ struct DashboardView: View {
             }
         }
         .navigationTitle("GitPulse")
-        .navigationSubtitle(dashboard.viewer.githubMention)
+        .navigationSubtitle(dashboard.viewer.isEmpty ? "" : dashboard.viewer.githubMention)
     }
 
     private var paneSplit: some View {

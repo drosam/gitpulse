@@ -218,6 +218,21 @@ struct SessionListRulesTests {
         #expect(harness.defaults.object(forKey: "lastMyPullRequestIDs") == nil)
     }
 
+    @Test func selectedScopeWithNoValidRepositoryShowsNothingWithoutFetching() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older], reviews: [newer]))
+        let callsBefore = await harness.source.trackedIDsPerCall.count
+        harness.settings.selectedRepositoriesText = "not-a-repo"
+        harness.settings.repositoryScope = .selected
+        await harness.session.applySettingsChanged(refresh: true)
+        await harness.session.backgroundRefresh()
+
+        #expect(await harness.source.trackedIDsPerCall.count == callsBefore)
+        #expect(harness.dashboard?.myPRs.isEmpty == true)
+        #expect(harness.dashboard?.reviewRequests.isEmpty == true)
+        #expect(harness.dashboard?.viewer == "octocat")
+    }
+
     @Test func signOutClearsPersistedState() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [older]))

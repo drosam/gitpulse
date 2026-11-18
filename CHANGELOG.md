@@ -30,6 +30,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - Changing **Pull request order** in Settings reorders the lists right away instead of at the next refresh.
 - A failed refresh no longer replaces the dashboard with an error screen: the last pull requests stay visible with the error shown above them. Restoring a hidden pull request and showing hidden pull requests work offline and no longer refetch from GitHub.
 - Automatic refreshes that fail now show the same error above the dashboard instead of silently leaving stale data. A revoked or expired GitHub sign-in returns to the sign-in screen with an explanation and keeps unread and hidden pull requests.
+- **Only selected repositories** with no valid entry now shows no pull requests instead of every repository, and Settings lists the ignored lines. GitHub repository URLs are accepted as entries.
 - Overlapping refreshes no longer apply an older response over a newer one, and a refresh finishing after sign-out no longer brings the dashboard back.
 - A pull request's icon no longer turns into a magenta square after it enters the merge queue or merges while GitPulse is open.
 

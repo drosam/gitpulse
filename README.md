@@ -74,7 +74,7 @@ This builds a release binary for your Mac, generates the icon, and installs an a
   - Show/hide Dock badge count
   - Show/hide unread dots
   - Start GitPulse automatically when you log in
-  - Check all matching repositories or only selected `owner/repo` repositories
+  - Check all matching repositories or only selected repositories (`owner/repo` or GitHub URLs)
   - Show hidden pull requests in lists
   - Restore hidden pull requests
 - Lives in the menu bar: closing the window hides the Dock icon, the app keeps polling in the background

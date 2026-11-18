@@ -189,6 +189,7 @@ public final class Session {
 
     public func refresh() async {
         guard let token else { return }
+        if settings.selectsNoRepositories { return showNoRepositories() }
         if case .ready = state {} else { state = .loading }
         isRefreshing = true
         defer { isRefreshing = false }
@@ -321,6 +322,7 @@ public final class Session {
 
     func backgroundRefresh() async {
         guard let token else { return }
+        if settings.selectsNoRepositories { return showNoRepositories() }
         if let rateLimitedUntil, Date() < rateLimitedUntil { return }
         do {
             let dashboard = try await fetchDashboard(token: token)
@@ -349,6 +351,18 @@ public final class Session {
         } else {
             refreshError = error.localizedDescription
         }
+    }
+
+    /// Empty lists without fetching or touching notification state; drops any in-flight fetch.
+    private func showNoRepositories() {
+        refreshGeneration += 1
+        show(Dashboard(
+            viewer: fetchedDashboard?.viewer ?? "",
+            myPRs: [],
+            reviewRequests: [],
+            requestedReviewIDs: [],
+            recentlyMerged: []
+        ))
     }
 
     private func show(_ dashboard: Dashboard) {

@@ -62,20 +62,52 @@ public final class AppSettings {
         didSet { defaults.set(pullRequestSort.rawValue, forKey: Self.pullRequestSortKey) }
     }
 
-    /// Newline or comma separated `owner/name` repository names.
+    /// Newline or comma separated `owner/name` repository names or GitHub repository URLs.
     var selectedRepositoriesText: String {
         didSet { defaults.set(selectedRepositoriesText, forKey: Self.selectedRepositoriesKey) }
     }
 
     var selectedRepositories: [String] {
-        selectedRepositoriesText
-            .split { $0 == "\n" || $0 == "," || $0 == " " || $0 == "\t" }
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter(Self.isValidRepository)
+        var seen = Set<String>()
+        return repositoryEntries
+            .compactMap(Self.repositoryName(from:))
+            .filter { seen.insert($0).inserted }
+    }
+
+    /// Entries that are neither `owner/name` nor a GitHub repository URL.
+    var rejectedRepositoryEntries: [String] {
+        repositoryEntries.filter { Self.repositoryName(from: $0) == nil }
     }
 
     var activeRepositories: [String] {
         repositoryScope == .selected ? selectedRepositories : []
+    }
+
+    /// "Only selected" with no valid entry; an empty filter would otherwise mean every repository.
+    var selectsNoRepositories: Bool {
+        repositoryScope == .selected && selectedRepositories.isEmpty
+    }
+
+    private var repositoryEntries: [String] {
+        selectedRepositoriesText
+            .split { $0 == "\n" || $0 == "," || $0 == " " || $0 == "\t" }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// `owner/name` from an entry, accepting `github.com/owner/name/...` URLs.
+    private static func repositoryName(from entry: String) -> String? {
+        var path = entry
+        for scheme in ["https://", "http://"] where path.lowercased().hasPrefix(scheme) {
+            path.removeFirst(scheme.count)
+        }
+        if path.lowercased().hasPrefix("www.") { path.removeFirst(4) }
+        if path.lowercased().hasPrefix("github.com/") {
+            let parts = path.split(separator: "/").dropFirst().prefix(2)
+            path = parts.joined(separator: "/")
+            if path.hasSuffix(".git") { path.removeLast(4) }
+        }
+        return isValidRepository(path) ? path : nil
     }
 
     private static let showNotificationBannersKey = "settings.showNotificationBanners"
