@@ -61,6 +61,20 @@ struct DashboardDecodingTests {
         #expect(try decode().reviewRequests.map(\.id) == ["PR_E", "PR_C"])
     }
 
+    @Test func approvedPullRequestReturnsWhenReviewIsRequestedAgain() throws {
+        var envelope = try #require(try JSONSerialization.jsonObject(with: fixture("dashboard")) as? [String: Any])
+        var data = try #require(envelope["data"] as? [String: Any])
+        let reviewed = try #require(data["reviewed"] as? [String: Any])
+        let approved = try #require((reviewed["nodes"] as? [[String: Any]])?.first { $0["id"] as? String == "PR_D" })
+        var requested = try #require(data["reviews"] as? [String: Any])
+        requested["nodes"] = (requested["nodes"] as? [Any] ?? []) + [approved]
+        data["reviews"] = requested
+        envelope["data"] = data
+
+        let dashboard = try GitHubClient.decodeDashboard(JSONSerialization.data(withJSONObject: envelope))
+        #expect(dashboard.reviewRequests.map(\.id).sorted() == ["PR_C", "PR_D", "PR_E"])
+    }
+
     @Test func recentlyMergedCombinesSearchesAndTrackedMergedNodes() throws {
         let merged = try decode().recentlyMerged
         #expect(merged.map(\.id) == ["PR_M2", "PR_M1"])

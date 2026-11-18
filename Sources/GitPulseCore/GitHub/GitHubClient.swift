@@ -175,9 +175,11 @@ struct GitHubClient: Sendable {
         let viewer = payload.viewer.login
         seen = []
         let myPRIDs = Set(myPRs.map(\.id))
-        let reviewRequests = (payload.reviews.nodes + payload.reviewed.nodes + payload.commented.nodes)
+        // A pending request wins over an earlier approval; participation alone ends at approval.
+        let participated = (payload.reviewed.nodes + payload.commented.nodes)
             .compactMap { $0 }
             .filter { $0.latestReviewState(by: viewer) != "APPROVED" }
+        let reviewRequests = (payload.reviews.nodes.compactMap { $0 } + participated)
             .compactMap { $0.pullRequest }
             .filter { !myPRIDs.contains($0.id) }
             .filter { seen.insert($0.id).inserted }
