@@ -74,16 +74,25 @@ struct DeviceFlow: Sendable {
 
         while now() < deadline {
             try await sleep(.seconds(interval))
+            try Task.checkCancellation()
 
-            let response = try await post(
-                url: URL(string: "https://github.com/login/oauth/access_token")!,
-                body: [
-                    "client_id": Self.clientID,
-                    "device_code": authorization.deviceCode,
-                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-                ],
-                as: PollResponse.self
-            )
+            let response: PollResponse
+            do {
+                response = try await post(
+                    url: URL(string: "https://github.com/login/oauth/access_token")!,
+                    body: [
+                        "client_id": Self.clientID,
+                        "device_code": authorization.deviceCode,
+                        "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                    ],
+                    as: PollResponse.self,
+                    retryingServerErrors: true
+                )
+            } catch is URLError where !Task.isCancelled {
+                continue
+            } catch is ServerError {
+                continue
+            }
 
             if let token = response.accessToken {
                 return token
@@ -116,7 +125,10 @@ struct DeviceFlow: Sendable {
         }
     }
 
-    private func post<T: Decodable>(url: URL, body: [String: String], as type: T.Type) async throws -> T {
+    /// A 5xx while polling; the code stays valid, so polling carries on.
+    private struct ServerError: Error {}
+
+    private func post<T: Decodable>(url: URL, body: [String: String], as type: T.Type, retryingServerErrors: Bool = false) async throws -> T {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -126,6 +138,7 @@ struct DeviceFlow: Sendable {
         let (data, response) = try await transport(request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200 else {
+            if retryingServerErrors, status >= 500 { throw ServerError() }
             let parsed = try? JSONDecoder().decode(OAuthError.self, from: data)
             if let detail = parsed?.errorDescription ?? parsed?.error {
                 throw FlowError.unexpected("HTTP \(status): \(detail)")

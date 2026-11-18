@@ -173,7 +173,8 @@ struct SessionHarness {
     init(
         defaults: UserDefaults = makeDefaults(),
         dashboards: [Dashboard] = [],
-        tokens: TokenProvider = TokenProvider(resolve: { ResolvedToken(token: "test-token", source: .keychain) }, save: { _ in }, clear: {})
+        tokens: TokenProvider = TokenProvider(resolve: { ResolvedToken(token: "test-token", source: .keychain) }, save: { _ in }, clear: {}),
+        deviceFlow: DeviceFlow = DeviceFlow(transport: { _ in throw URLError(.notConnectedToInternet) })
     ) {
         self.defaults = defaults
         settings = AppSettings(defaults: defaults)
@@ -186,7 +187,7 @@ struct SessionHarness {
                 notifier: notifier,
                 dashboardSource: source,
                 tokens: tokens,
-                deviceFlow: DeviceFlow(),
+                deviceFlow: deviceFlow,
                 setDockBadge: { [badge] in badge.record($0) }
             )
         )

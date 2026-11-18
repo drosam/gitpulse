@@ -22,6 +22,7 @@ private final class FlowScript: Sendable {
         DeviceFlow(
             transport: { request in
                 let (status, body) = self.responses.withLock { $0.isEmpty ? (500, "{}") : $0.removeFirst() }
+                if status == 0 { throw URLError(.notConnectedToInternet) }
                 let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
                 return (Data(body.utf8), response)
             },
@@ -70,6 +71,23 @@ struct DeviceFlowTests {
         ])
         _ = try await script.flow.pollForToken(authorization)
         #expect(script.recordedSleeps == [.seconds(5), .seconds(10), .seconds(15)])
+    }
+
+    @Test func pollingRetriesNetworkAndServerErrors() async throws {
+        let script = FlowScript([
+            (0, ""),
+            (502, "<html>bad gateway</html>"),
+            (200, #"{"access_token":"gho_test"}"#),
+        ])
+        let token = try await script.flow.pollForToken(authorization)
+        #expect(token == "gho_test")
+    }
+
+    @Test func pollingStillFailsOnClientErrors() async {
+        let script = FlowScript([(400, #"{"error":"bad_request"}"#)])
+        await #expect(throws: DeviceFlow.FlowError.unexpected("HTTP 400: bad_request")) {
+            try await script.flow.pollForToken(authorization)
+        }
     }
 
     @Test func accessDeniedThrows() async {

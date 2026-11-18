@@ -69,6 +69,9 @@ public final class Session {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let dependencies: Dependencies
     private var autoRefreshTask: Task<Void, Never>?
+    private var signInTask: Task<Void, Never>?
+    /// Bumped per sign-in, cancel and sign-out, so a superseded device flow's result is ignored.
+    private var signInGeneration = 0
     /// Background refresh skips polls until this time after GitHub reports an exhausted rate limit.
     private var rateLimitedUntil: Date?
     /// Last seen head-commit check state per PR, to detect CI finishing.
@@ -250,6 +253,7 @@ public final class Session {
     var viewerLogin: String? { fetchedDashboard?.viewer }
 
     public func start() async {
+        if case .authorizing = state { return }
         if defaults.bool(forKey: Self.signedOutKey) {
             externalTokenSource = dependencies.tokens.resolve()?.source
             state = .signedOut
@@ -264,6 +268,14 @@ public final class Session {
         externalTokenSource = nil
         await refresh()
         startAutoRefresh()
+    }
+
+    /// Abandons the device flow in progress and returns to the sign-in screen.
+    func cancelSignIn() {
+        signInTask?.cancel()
+        signInTask = nil
+        signInGeneration += 1
+        state = .signedOut
     }
 
     /// Signs in again with the environment or gh CLI token after an explicit sign-out.
@@ -287,11 +299,24 @@ public final class Session {
         }
     }
 
+    /// Runs one device flow at a time; starting another cancels the previous one.
     func signIn() async {
+        signInTask?.cancel()
+        signInGeneration += 1
+        let generation = signInGeneration
+        let task = Task { await runSignIn(generation: generation) }
+        signInTask = task
+        await task.value
+    }
+
+    private func runSignIn(generation: Int) async {
         do {
             let authorization = try await dependencies.deviceFlow.requestCode()
+            guard generation == signInGeneration else { return }
             state = .authorizing(authorization)
             let newToken = try await dependencies.deviceFlow.pollForToken(authorization)
+            guard generation == signInGeneration else { return }
+            signInTask = nil
             dependencies.tokens.save(newToken)
             defaults.removeObject(forKey: Self.signedOutKey)
             token = newToken
@@ -300,11 +325,16 @@ public final class Session {
             await refresh()
             startAutoRefresh()
         } catch {
+            guard generation == signInGeneration else { return }
+            signInTask = nil
             state = .failed(error.localizedDescription)
         }
     }
 
     func signOut() {
+        signInTask?.cancel()
+        signInTask = nil
+        signInGeneration += 1
         autoRefreshTask?.cancel()
         autoRefreshTask = nil
         resetLocalState()

@@ -39,6 +39,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - Hiding or restoring a pull request with an unread dot updates the Dock badge count right away instead of at the next refresh.
 - A review decision or check state that GitHub adds in the future is shown as none instead of failing every refresh.
 - Signing out now sticks when the token comes from `GITHUB_TOKEN` or the GitHub CLI, instead of signing straight back in. The sign-in screen offers to use that token again.
+- Sign-in runs one device flow at a time and has a **Cancel** button. Reopening the window keeps the code on screen, an abandoned sign-in no longer replaces a working dashboard with "device code expired" later, and a brief network or GitHub error while waiting for approval no longer aborts sign-in.
 - Overlapping refreshes no longer apply an older response over a newer one, and a refresh finishing after sign-out no longer brings the dashboard back.
 - A pull request's icon no longer turns into a magenta square after it enters the merge queue or merges while GitPulse is open.
 

@@ -368,6 +368,7 @@ struct SignInView: View {
 }
 
 struct AuthorizingView: View {
+    @Environment(Session.self) private var session
     var authorization: DeviceFlow.Authorization
 
     var body: some View {
@@ -381,6 +382,9 @@ struct AuthorizingView: View {
             ProgressView()
                 .controlSize(.small)
                 .padding(.top, 8)
+            Button("Cancel") {
+                session.cancelSignIn()
+            }
         }
         .padding()
     }
