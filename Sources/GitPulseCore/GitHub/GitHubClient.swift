@@ -15,6 +15,8 @@ enum GitHubError: LocalizedError, Equatable {
     /// HTTP status plus GitHub's JSON `message`, when the body has one.
     case http(Int, String?)
     case graphQL([String])
+    /// GitHub's rate limit is used up; requests should wait until `until`.
+    case rateLimited(until: Date)
 
     /// Builds an `.http` error without echoing raw response bodies into the UI.
     static func http(status: Int, body: Data) -> GitHubError {
@@ -31,6 +33,8 @@ enum GitHubError: LocalizedError, Equatable {
             return "GitHub returned HTTP \(status)"
         case .graphQL(let messages):
             return "GraphQL error: \(messages.joined(separator: "; "))"
+        case .rateLimited(let until):
+            return "GitHub rate limit reached. GitPulse refreshes again at \(until.formatted(date: .omitted, time: .shortened))."
         }
     }
 }
@@ -74,16 +78,16 @@ struct GitHubClient: Sendable {
             nodes { ...prFields }
           }
           mergedAuthored: search(query: "\(scoped("is:pr is:merged author:@me archived:false sort:updated-desc"))", type: ISSUE, first: 20) {
-            nodes { ...prFields }
+            nodes { ...prSummary }
           }
           mergedAssigned: search(query: "\(scoped("is:pr is:merged assignee:@me archived:false sort:updated-desc"))", type: ISSUE, first: 20) {
-            nodes { ...prFields }
+            nodes { ...prSummary }
           }
           tracked: nodes(ids: [\(trackedIDs)]) {
-            ... on PullRequest { ...prFields }
+            ... on PullRequest { ...prSummary }
           }
         }
-        fragment prFields on PullRequest {
+        fragment prSummary on PullRequest {
           id number title url state isDraft isInMergeQueue reviewDecision additions deletions createdAt updatedAt
           headRefName
           totalCommentsCount
@@ -92,9 +96,12 @@ struct GitHubClient: Sendable {
           mergeQueueEntry { state }
           labels(first: 10) { nodes { name color } }
           commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+        }
+        fragment prFields on PullRequest {
+          ...prSummary
           comments(last: 10) { nodes { author { login } createdAt } }
           reviews(last: 30) { nodes { author { login } state submittedAt } }
-          reviewThreads(last: 20) { nodes { comments(last: 10) { nodes { author { login } createdAt } } } }
+          reviewThreads(last: 10) { nodes { comments(last: 10) { nodes { author { login } createdAt } } } }
         }
         """
     }
@@ -107,11 +114,29 @@ struct GitHubClient: Sendable {
         request.httpBody = try JSONEncoder().encode(["query": dashboardQuery])
 
         let (data, response) = try await HTTP.session.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard status == 200 else {
-            throw GitHubError.http(status: status, body: data)
+        let http = response as? HTTPURLResponse
+        let resume = http.flatMap { Self.rateLimitResume(from: $0, now: Date()) }
+        do {
+            guard http?.statusCode == 200 else {
+                throw GitHubError.http(status: http?.statusCode ?? 0, body: data)
+            }
+            return try Self.decodeDashboard(data)
+        } catch {
+            if let resume { throw GitHubError.rateLimited(until: resume) }
+            throw error
         }
-        return try Self.decodeDashboard(data)
+    }
+
+    /// When GitHub allows the next request, if this response reports an exhausted rate limit.
+    static func rateLimitResume(from response: HTTPURLResponse, now: Date) -> Date? {
+        if response.value(forHTTPHeaderField: "x-ratelimit-remaining") == "0",
+           let reset = response.value(forHTTPHeaderField: "x-ratelimit-reset").flatMap(TimeInterval.init) {
+            return Date(timeIntervalSince1970: reset)
+        }
+        if let delay = response.value(forHTTPHeaderField: "retry-after").flatMap(TimeInterval.init) {
+            return now.addingTimeInterval(delay)
+        }
+        return nil
     }
 
     /// Decodes a GraphQL dashboard response and applies the pane rules.

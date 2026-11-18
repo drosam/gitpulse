@@ -57,7 +57,7 @@ This builds a release binary for your Mac, generates the icon, and installs an a
 
 ## Features
 
-- Two-pane dashboard, refreshed automatically every 60 seconds (`⌘R` to refresh manually)
+- Two-pane dashboard, refreshed automatically every 2 minutes (`⌘R` to refresh manually); automatic refresh pauses until GitHub's rate limit resets if it runs out
 - Pull request lists default to created newest-to-oldest; Settings can switch to updated newest-to-oldest
 - Click a row or press Return to open the selected PR in your browser
 - Keyboard navigation: arrow keys move between rows/panes, `V` shows unread notification details for the selected PR, Space clears an unread dot, `⌘C` copies the selected PR URL, `H` hides/restores the selected PR, `⇧⌘H` (**View → Show Hidden Pull Requests**) toggles showing hidden PRs. Shortcuts apply only while the dashboard window has focus.

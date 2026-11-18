@@ -11,6 +11,8 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 
 - Show hidden pull requests moved from `⌘H` to `⇧⌘H` (**View → Show Hidden Pull Requests**), so `⌘H` hides GitPulse again like other apps.
 - Letter shortcuts (`H`, `V`) follow your keyboard layout instead of the physical key position.
+- Automatic refresh runs every 2 minutes instead of every minute, and each refresh uses about half the GitHub API budget it did, so GitPulse takes roughly a quarter of your hourly GraphQL rate limit instead of most of it. Inline review replies are now read from the 10 most recent threads per pull request instead of 20.
+- When GitHub's rate limit runs out, automatic refresh pauses until it resets, and a manual refresh says when it will retry.
 
 ### Fixed
 

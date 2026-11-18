@@ -95,6 +95,7 @@ actor StubDashboardSource: DashboardSource {
     private var queue: [Dashboard]
     private var last: Dashboard?
     private(set) var trackedIDsPerCall: [[PullRequest.ID]] = []
+    private var nextError: Error?
 
     init(_ dashboards: [Dashboard] = []) {
         queue = dashboards
@@ -104,8 +105,17 @@ actor StubDashboardSource: DashboardSource {
         queue.append(dashboard)
     }
 
+    /// Makes the next fetch throw `error` instead of returning a dashboard.
+    func failNext(with error: Error) {
+        nextError = error
+    }
+
     func fetchDashboard(token: String, repositories: [String], trackedPullRequestIDs: [PullRequest.ID]) async throws -> Dashboard {
         trackedIDsPerCall.append(trackedPullRequestIDs.sorted())
+        if let error = nextError {
+            nextError = nil
+            throw error
+        }
         if !queue.isEmpty { last = queue.removeFirst() }
         guard let last else { throw GitHubError.http(500, nil) }
         return last

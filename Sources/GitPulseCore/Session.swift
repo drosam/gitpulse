@@ -63,6 +63,8 @@ public final class Session {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let dependencies: Dependencies
     private var autoRefreshTask: Task<Void, Never>?
+    /// Background refresh skips polls until this time after GitHub reports an exhausted rate limit.
+    private var rateLimitedUntil: Date?
     /// Last seen head-commit check state per PR, to detect CI finishing.
     private var lastCheckState: [PullRequest.ID: PullRequest.CheckState] = [:]
     private var hasSeededChecks = false
@@ -82,7 +84,7 @@ public final class Session {
     private var knownMergedIDs: Set<PullRequest.ID> = []
     private var hasSeededMerged = false
 
-    private static let autoRefreshInterval: Duration = .seconds(60)
+    private static let autoRefreshInterval: Duration = .seconds(120)
     private static let activityKey = "lastActivityAt"
     static let unreadKey = "unreadURLs"
     static let unreadNotificationsKey = "unreadNotifications"
@@ -189,6 +191,7 @@ public final class Session {
     func signOut() {
         autoRefreshTask?.cancel()
         autoRefreshTask = nil
+        rateLimitedUntil = nil
         lastActivityAt = [:]
         lastCheckState = [:]
         knownReviewRequestIDs = []
@@ -293,6 +296,7 @@ public final class Session {
     /// so a transient network error never replaces data with an error screen.
     func backgroundRefresh() async {
         guard let token else { return }
+        if let rateLimitedUntil, Date() < rateLimitedUntil { return }
         if let dashboard = try? await fetchDashboard(token: token) {
             processActivity(in: dashboard)
             state = .ready(displayDashboard(dashboard))
@@ -300,11 +304,18 @@ public final class Session {
     }
 
     private func fetchDashboard(token: String) async throws -> Dashboard {
-        try await dependencies.dashboardSource.fetchDashboard(
-            token: token,
-            repositories: settings.activeRepositories,
-            trackedPullRequestIDs: Array(lastMyPullRequestIDs)
-        )
+        do {
+            let dashboard = try await dependencies.dashboardSource.fetchDashboard(
+                token: token,
+                repositories: settings.activeRepositories,
+                trackedPullRequestIDs: Array(lastMyPullRequestIDs)
+            )
+            rateLimitedUntil = nil
+            return dashboard
+        } catch GitHubError.rateLimited(let until) {
+            rateLimitedUntil = until
+            throw GitHubError.rateLimited(until: until)
+        }
     }
 
     /// Derives all local notifications from the dashboard — CI results, new

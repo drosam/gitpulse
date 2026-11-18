@@ -121,4 +121,24 @@ struct GitHubErrorTests {
         let error = GitHubError.http(status: 502, body: Data("<html>secret upstream page</html>".utf8))
         #expect(error.localizedDescription == "GitHub returned HTTP 502")
     }
+
+    private func response(_ headers: [String: String]) -> HTTPURLResponse {
+        HTTPURLResponse(url: URL(string: "https://api.github.com/graphql")!, statusCode: 200, httpVersion: nil, headerFields: headers)!
+    }
+
+    @Test func exhaustedBudgetResumesAtReset() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let headers = ["x-ratelimit-remaining": "0", "x-ratelimit-reset": "4600"]
+        #expect(GitHubClient.rateLimitResume(from: response(headers), now: now) == Date(timeIntervalSince1970: 4_600))
+    }
+
+    @Test func retryAfterResumesAfterDelay() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        #expect(GitHubClient.rateLimitResume(from: response(["retry-after": "60"]), now: now) == Date(timeIntervalSince1970: 1_060))
+    }
+
+    @Test func remainingBudgetIsNotRateLimited() {
+        let headers = ["x-ratelimit-remaining": "12", "x-ratelimit-reset": "4600"]
+        #expect(GitHubClient.rateLimitResume(from: response(headers), now: Date()) == nil)
+    }
 }

@@ -88,6 +88,31 @@ struct SessionListRulesTests {
         #expect(calls.last == ["new", "old"])
     }
 
+    @Test func rateLimitPausesBackgroundRefreshUntilReset() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older]))
+        await harness.source.failNext(with: GitHubError.rateLimited(until: Date().addingTimeInterval(3600)))
+        await harness.session.backgroundRefresh()
+        let callsAfterLimit = await harness.source.trackedIDsPerCall.count
+
+        await harness.session.backgroundRefresh()
+
+        #expect(await harness.source.trackedIDsPerCall.count == callsAfterLimit)
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["old"])
+    }
+
+    @Test func backgroundRefreshResumesAfterReset() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older]))
+        await harness.source.failNext(with: GitHubError.rateLimited(until: Date().addingTimeInterval(-1)))
+        await harness.session.backgroundRefresh()
+        let callsAfterLimit = await harness.source.trackedIDsPerCall.count
+
+        await harness.session.backgroundRefresh()
+
+        #expect(await harness.source.trackedIDsPerCall.count == callsAfterLimit + 1)
+    }
+
     @Test func signOutClearsPersistedState() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [older]))
