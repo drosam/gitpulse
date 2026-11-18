@@ -54,6 +54,15 @@ struct SessionNotificationTests {
         #expect(harness.notifier.posts.isEmpty)
     }
 
+    @Test func firstActivityOnQuietPullRequestPosts() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [makePR("A")]))
+        await harness.load(makeDashboard(mine: [makePR("A", activity: [comment(by: "hubot", at: "2026-01-03T00:00:00Z")])]))
+
+        #expect(harness.notifier.posts == [.activity("A", author: "hubot")])
+        #expect(harness.session.unreadPRURLs == [makePR("A").url])
+    }
+
     @Test func checkFailurePostsFailedResult() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [makePR("A", checkState: .pending)]))

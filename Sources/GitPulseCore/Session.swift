@@ -344,10 +344,11 @@ public final class Session {
     /// Posts a banner for each comment or review newer than the last one we saw
     /// on that PR (skipping your own). A PR with no recorded cursor seeds
     /// silently — covers both first launch and a PR newly entering the app.
+    /// A PR seen with no activity yet gets a `.distantPast` cursor so its first event notifies.
     private func detectNewActivity(in dashboard: Dashboard) {
         let prs = dashboard.myPRs + dashboard.reviewRequests
         for pr in prs {
-            guard let newest = pr.activity.last?.createdAt else { continue }
+            let newest = pr.activity.last?.createdAt ?? .distantPast
             if let cursor = lastActivityAt[pr.id] {
                 for event in pr.activity where event.createdAt > cursor && event.author != dashboard.viewer {
                     recordUnread(pr, subtitle: activitySubtitle(for: event), id: "activity-\(pr.id)-\(event.createdAt.timeIntervalSince1970)", createdAt: event.createdAt)

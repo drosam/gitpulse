@@ -16,6 +16,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 
 - Typing in Settings no longer triggers dashboard shortcuts: `H`, `V`, Space, Return and arrow keys reach the text field, and `⌘C` copies the selected text instead of a pull request URL.
 - A pull request that GitHub can no longer resolve (deleted repository, lost access) no longer makes every refresh fail until you sign out.
+- The first comment or review on a pull request with no earlier activity now shows a banner and an unread dot.
 
 ### Security
 
