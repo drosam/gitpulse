@@ -33,6 +33,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - **Only selected repositories** with no valid entry now shows no pull requests instead of every repository, and Settings lists the ignored lines. GitHub repository URLs are accepted as entries.
 - Switching GitHub accounts (another token, `gh auth switch`, or signing in after a revoked token) no longer carries hidden pull requests, unread rows, and notification history across accounts or bursts banners for the new account. Each account keeps its own state; existing state moves to the first account that refreshes.
 - Hiding or restoring a pull request with an unread dot updates the Dock badge count right away instead of at the next refresh.
+- A review decision or check state that GitHub adds in the future is shown as none instead of failing every refresh.
 - Overlapping refreshes no longer apply an older response over a newer one, and a refresh finishing after sign-out no longer brings the dashboard back.
 - A pull request's icon no longer turns into a magenta square after it enters the merge queue or merges while GitPulse is open.
 

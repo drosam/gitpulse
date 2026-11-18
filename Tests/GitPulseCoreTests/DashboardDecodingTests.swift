@@ -98,6 +98,15 @@ struct DashboardDecodingTests {
         return try JSONSerialization.data(withJSONObject: envelope)
     }
 
+    @Test func unknownGitHubEnumValuesDecodeAsNil() throws {
+        let json = try #require(String(data: fixture("dashboard"), encoding: .utf8))
+            .replacingOccurrences(of: #""reviewDecision": "APPROVED""#, with: #""reviewDecision": "SOMETHING_NEW""#)
+            .replacingOccurrences(of: #""statusCheckRollup": { "state": "SUCCESS" }"#, with: #""statusCheckRollup": { "state": "SOMETHING_NEW" }"#)
+        let pr = try #require(try GitHubClient.decodeDashboard(Data(json.utf8)).myPRs.first { $0.id == "PR_A" })
+        #expect(pr.reviewDecision == nil)
+        #expect(pr.checkState == nil)
+    }
+
     @Test func unresolvableTrackedPullRequestIsIgnored() throws {
         let data = try partialResponse(tracked: [NSNull()], errors: [[
             "type": "NOT_FOUND",

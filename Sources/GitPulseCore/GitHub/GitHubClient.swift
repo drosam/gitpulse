@@ -251,7 +251,8 @@ private struct PRNode: Decodable {
     var isDraft: Bool?
     var isInMergeQueue: Bool?
     var headRefName: String?
-    var reviewDecision: PullRequest.ReviewDecision?
+    /// Raw strings so a value GitHub adds later maps to nil instead of failing the whole decode.
+    var reviewDecision: String?
     var additions: Int?
     var deletions: Int?
     var createdAt: Date?
@@ -277,7 +278,7 @@ private struct PRNode: Decodable {
         var nodes: [Node?]
         struct Node: Decodable { var commit: Commit }
         struct Commit: Decodable { var statusCheckRollup: Rollup? }
-        struct Rollup: Decodable { var state: PullRequest.CheckState? }
+        struct Rollup: Decodable { var state: String? }
     }
     struct CommentConnection: Decodable {
         var nodes: [Node?]
@@ -341,8 +342,8 @@ private struct PRNode: Decodable {
             headBranch: headRefName ?? "",
             isDraft: isDraft ?? false,
             isMerged: state == "MERGED",
-            reviewDecision: reviewDecision,
-            checkState: commits?.nodes.first??.commit.statusCheckRollup?.state,
+            reviewDecision: reviewDecision.flatMap(PullRequest.ReviewDecision.init(rawValue:)),
+            checkState: commits?.nodes.first??.commit.statusCheckRollup?.state.flatMap(PullRequest.CheckState.init(rawValue:)),
             isInMergeQueue: isInMergeQueue ?? false,
             mergeQueueState: mergeQueueEntry?.state,
             labels: labels?.nodes.compactMap { $0 } ?? [],
