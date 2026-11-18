@@ -7,6 +7,15 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 
 ## [Unreleased]
 
+### Changed
+
+- Show hidden pull requests moved from `⌘H` to `⇧⌘H` (**View → Show Hidden Pull Requests**), so `⌘H` hides GitPulse again like other apps.
+- Letter shortcuts (`H`, `V`) follow your keyboard layout instead of the physical key position.
+
+### Fixed
+
+- Typing in Settings no longer triggers dashboard shortcuts: `H`, `V`, Space, Return and arrow keys reach the text field, and `⌘C` copies the selected text instead of a pull request URL.
+
 ### Security
 
 - GitHub requests no longer use the shared disk cache. v0.1.0 saved every request, including the `Authorization` header with your token, and the responses in `~/Library/Caches/dev.davidrosa.gitpulse`. GitPulse now deletes that folder and `~/Library/HTTPStorages/dev.davidrosa.gitpulse` at launch, and `brew uninstall --zap` removes them. If other software running as your user could have read those files, revoke the token: OAuth tokens (**Sign in with GitHub**, GitHub CLI) at <https://github.com/settings/applications>, personal access tokens at <https://github.com/settings/tokens>.

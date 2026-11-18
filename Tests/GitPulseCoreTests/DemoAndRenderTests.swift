@@ -59,15 +59,26 @@ struct RenderSmokeTests {
     @Test(arguments: [ColorScheme.light, .dark])
     func pullRequestListRenders(_ scheme: ColorScheme) async throws {
         let (session, settings, dashboard) = await demo()
-        let list = PRListView(
-            title: "My pull requests",
-            systemImage: "arrow.triangle.pull",
-            pullRequests: dashboard.myPRs,
-            unreadURLs: session.unreadPRURLs,
-            unreadNotifications: session.unreadNotificationsByURL,
-            isActive: true,
-            selectedID: .constant(dashboard.myPRs.first?.id)
-        )
+        struct Host: View {
+            var session: Session
+            var dashboard: Dashboard
+            @FocusState private var focus: DashboardView.KeyFocus?
+
+            var body: some View {
+                PRListView(
+                    title: "My pull requests",
+                    systemImage: "arrow.triangle.pull",
+                    pullRequests: dashboard.myPRs,
+                    unreadURLs: session.unreadPRURLs,
+                    unreadNotifications: session.unreadNotificationsByURL,
+                    isActive: true,
+                    selectedID: .constant(dashboard.myPRs.first?.id),
+                    keyFocus: $focus,
+                    focusValue: .pane(.mine)
+                )
+            }
+        }
+        let list = Host(session: session, dashboard: dashboard)
         let image = try #require(render(list.environment(session).environment(settings), scheme: scheme))
         #expect(image.size.width > 0 && image.size.height > 0)
     }

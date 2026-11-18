@@ -60,7 +60,7 @@ This builds a release binary for your Mac, generates the icon, and installs an a
 - Two-pane dashboard, refreshed automatically every 60 seconds (`⌘R` to refresh manually)
 - Pull request lists default to created newest-to-oldest; Settings can switch to updated newest-to-oldest
 - Click a row or press Return to open the selected PR in your browser
-- Keyboard navigation: arrow keys move between rows/panes, `V` shows unread notification details for the selected PR, Space clears an unread dot, `⌘C` copies the selected PR URL, `H` hides/restores the selected PR, `⌘H` toggles showing hidden PRs
+- Keyboard navigation: arrow keys move between rows/panes, `V` shows unread notification details for the selected PR, Space clears an unread dot, `⌘C` copies the selected PR URL, `H` hides/restores the selected PR, `⇧⌘H` (**View → Show Hidden Pull Requests**) toggles showing hidden PRs. Shortcuts apply only while the dashboard window has focus.
 - Each row shows draft state, merged/merge-queue status, CI status (✓ / ✗ / running), head branch, labels, comment count, age, author, and review decision
 - **Notifications** — GitPulse detects useful PR activity from the dashboard:
   - macOS banners for new review requests, new top-level comments, inline review-thread replies, submitted reviews, CI completion, merge-queue exits, and newly merged PRs you authored or were assigned to
@@ -98,7 +98,7 @@ This builds a release binary for your Mac, generates the icon, and installs an a
 
 - Select a PR and press `H`, or right-click it and choose **Hide Pull Request**.
 - Press `H` on a hidden PR, or right-click it and choose **Restore Pull Request**, to restore it.
-- Press `⌘H`, or use **Settings… → Hidden Pull Requests → Show hidden pull requests in lists**, to show/hide hidden PRs in the dashboard.
+- Press `⇧⌘H`, or use **Settings… → Hidden Pull Requests → Show hidden pull requests in lists**, to show/hide hidden PRs in the dashboard.
 - When shown, hidden PRs move to the bottom of each list, keep their relative order, and are dimmed and marked **Hidden**.
 - Hidden PRs can still show a row-level blue unread dot, but they do not drive the menu bar dot, Dock badge, notification banners, or sounds.
 - Restore one or all hidden PRs from **Settings… → Hidden Pull Requests**.

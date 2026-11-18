@@ -28,6 +28,7 @@ public struct ContentView: View {
 
 struct DashboardView: View {
     enum Pane { case mine, review }
+    enum KeyFocus: Hashable { case dashboard, pane(Pane) }
 
     @Environment(Session.self) private var session
     @Environment(AppSettings.self) private var settings
@@ -37,6 +38,7 @@ struct DashboardView: View {
     @State private var reviewSelectedID: PullRequest.ID?
     @State private var toastMessage: String?
     @State private var notificationPanelPR: PullRequest?
+    @FocusState private var keyFocus: KeyFocus?
     var dashboard: Dashboard
 
     var body: some View {
@@ -96,19 +98,25 @@ struct DashboardView: View {
             }
         }
         .animation(.easeOut(duration: 0.18), value: toastMessage)
-        .background(KeyNavigator(
-            onUp: { move(-1) },
-            onDown: { move(1) },
-            onLeft: { switchTo(.mine) },
-            onRight: { switchTo(.review) },
-            onReturn: openSelected,
-            onSpace: dismissSelected,
-            onHide: toggleHideSelected,
-            onToggleHiddenVisibility: toggleHiddenVisibility,
-            onCopy: copySelectedURL,
-            onViewNotifications: showSelectedNotifications
-        ))
-        .onAppear { selectFirstIfNeeded() }
+        // Keys reach the dashboard only while it or one of its lists has focus.
+        .focusable()
+        .focusEffectDisabled()
+        .focused($keyFocus, equals: .dashboard)
+        .onKeyPress(phases: .down) { press in
+            guard let command = DashboardKeyCommand.command(
+                key: press.key, characters: press.characters, modifiers: press.modifiers
+            ) else { return .ignored }
+            perform(command)
+            return .handled
+        }
+        .onCopyCommand(perform: copySelectedURL)
+        .onChange(of: keyFocus) { _, focus in
+            if case .pane(let pane) = focus { activePane = pane }
+        }
+        .onAppear {
+            selectFirstIfNeeded()
+            keyFocus = .dashboard
+        }
         .toolbar {
             ToolbarItem {
                 if session.isRefreshing {
@@ -138,7 +146,9 @@ struct DashboardView: View {
                 selectedID: Binding(
                     get: { activePane == .mine ? mySelectedID : nil },
                     set: { mySelectedID = $0; activePane = .mine }
-                )
+                ),
+                keyFocus: $keyFocus,
+                focusValue: .pane(.mine)
             )
             PRListView(
                 title: "Review requested",
@@ -151,7 +161,9 @@ struct DashboardView: View {
                 selectedID: Binding(
                     get: { activePane == .review ? reviewSelectedID : nil },
                     set: { reviewSelectedID = $0; activePane = .review }
-                )
+                ),
+                keyFocus: $keyFocus,
+                focusValue: .pane(.review)
             )
         }
     }
@@ -178,11 +190,26 @@ struct DashboardView: View {
         activeSelection = prs[next].id
     }
 
+    private func perform(_ command: DashboardKeyCommand) {
+        switch command {
+        case .moveUp: move(-1)
+        case .moveDown: move(1)
+        case .showMine: switchTo(.mine)
+        case .showReview: switchTo(.review)
+        case .open: openSelected()
+        case .dismiss: dismissSelected()
+        case .toggleHide: toggleHideSelected()
+        case .viewNotifications: showSelectedNotifications()
+        }
+    }
+
     /// Switch the focused pane, selecting its first row if nothing is selected yet.
+    /// Keyboard focus follows, so the pane's list does not keep handling arrows for the old pane.
     private func switchTo(_ pane: Pane) {
         activePane = pane
         let prs = activePRs
         if activeSelection == nil, let first = prs.first { activeSelection = first.id }
+        keyFocus = prs.isEmpty ? .dashboard : .pane(pane)
     }
 
     private func openSelected() {
@@ -191,11 +218,10 @@ struct DashboardView: View {
         session.markRead(prURL: pr.url)
     }
 
-    private func copySelectedURL() {
-        guard let pr = activePRs.first(where: { $0.id == activeSelection }) else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(pr.url.absoluteString, forType: .string)
+    private func copySelectedURL() -> [NSItemProvider] {
+        guard let pr = activePRs.first(where: { $0.id == activeSelection }) else { return [] }
         showToast("Copied PR URL")
+        return [NSItemProvider(object: pr.url.absoluteString as NSString)]
     }
 
     private func showSelectedNotifications() {
@@ -249,12 +275,6 @@ struct DashboardView: View {
             }
             session.hide(pr)
         }
-    }
-
-    /// Command-H toggles showing hidden pull requests in the dashboard.
-    private func toggleHiddenVisibility() {
-        settings.showHiddenPullRequests.toggle()
-        Task { await session.applySettingsChanged(refresh: true) }
     }
 
     private func selectFirstIfNeeded() {

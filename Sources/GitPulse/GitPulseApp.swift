@@ -26,12 +26,7 @@ struct GitPulseApp: App {
         }
         .windowStyle(.automatic)
         .commands {
-            CommandGroup(after: .toolbar) {
-                Button("Refresh") {
-                    Task { await session.refresh() }
-                }
-                .keyboardShortcut("r", modifiers: .command)
-            }
+            DashboardCommands(session: session, settings: settings)
         }
 
         Settings {

@@ -9,6 +9,8 @@ struct PRListView: View {
     var hiddenURLs: Set<URL> = []
     var isActive: Bool
     @Binding var selectedID: PullRequest.ID?
+    var keyFocus: FocusState<DashboardView.KeyFocus?>.Binding
+    var focusValue: DashboardView.KeyFocus
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -38,6 +40,7 @@ struct PRListView: View {
                         .tag(pullRequest.id)
                     }
                     .listStyle(.inset)
+                    .focused(keyFocus, equals: focusValue)
                     .onChange(of: selectedID) { _, id in
                         scrollToSelection(id, with: proxy)
                     }
@@ -571,92 +574,5 @@ struct LabelPill: View {
 
     private var isLight: Bool {
         0.299 * rgb.red + 0.587 * rgb.green + 0.114 * rgb.blue > 0.6
-    }
-}
-
-/// Single window-wide key monitor for keyboard navigation.
-/// Installed ONCE by DashboardView — never per-pane — so each keypress is handled exactly once.
-struct KeyNavigator: NSViewRepresentable {
-    var onUp: () -> Void
-    var onDown: () -> Void
-    var onLeft: () -> Void
-    var onRight: () -> Void
-    var onReturn: () -> Void
-    var onSpace: () -> Void
-    var onHide: () -> Void
-    var onToggleHiddenVisibility: () -> Void
-    var onCopy: () -> Void
-    var onViewNotifications: () -> Void
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        context.coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak coordinator = context.coordinator] event in
-            guard let coordinator else { return event }
-            let keyCode = event.keyCode
-            var consume = false
-            MainActor.assumeIsolated {
-                switch keyCode {
-                case 126: coordinator.onUp();    consume = true   // Up
-                case 125: coordinator.onDown();  consume = true   // Down
-                case 123: coordinator.onLeft();  consume = true   // Left
-                case 124: coordinator.onRight(); consume = true   // Right
-                case 36, 76: coordinator.onReturn(); consume = true  // Return / Enter
-                case 49: coordinator.onSpace(); consume = true  // Space
-                case 4:
-                    if event.modifierFlags.contains(.command) {
-                        coordinator.onToggleHiddenVisibility()
-                    } else {
-                        coordinator.onHide()
-                    }
-                    consume = true  // H / Command-H
-                case 8 where event.modifierFlags.contains(.command):
-                    coordinator.onCopy()
-                    consume = true  // Command-C
-                case 9 where !event.modifierFlags.contains(.command):
-                    coordinator.onViewNotifications()
-                    consume = true  // V
-                default: break
-                }
-            }
-            return consume ? nil : event
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.onUp = onUp
-        context.coordinator.onDown = onDown
-        context.coordinator.onLeft = onLeft
-        context.coordinator.onRight = onRight
-        context.coordinator.onReturn = onReturn
-        context.coordinator.onSpace = onSpace
-        context.coordinator.onHide = onHide
-        context.coordinator.onToggleHiddenVisibility = onToggleHiddenVisibility
-        context.coordinator.onCopy = onCopy
-        context.coordinator.onViewNotifications = onViewNotifications
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onUp: onUp, onDown: onDown, onLeft: onLeft, onRight: onRight, onReturn: onReturn, onSpace: onSpace, onHide: onHide, onToggleHiddenVisibility: onToggleHiddenVisibility, onCopy: onCopy, onViewNotifications: onViewNotifications)
-    }
-
-    class Coordinator {
-        var onUp: () -> Void
-        var onDown: () -> Void
-        var onLeft: () -> Void
-        var onRight: () -> Void
-        var onReturn: () -> Void
-        var onSpace: () -> Void
-        var onHide: () -> Void
-        var onToggleHiddenVisibility: () -> Void
-        var onCopy: () -> Void
-        var onViewNotifications: () -> Void
-        var monitor: Any?
-
-        init(onUp: @escaping () -> Void, onDown: @escaping () -> Void, onLeft: @escaping () -> Void, onRight: @escaping () -> Void, onReturn: @escaping () -> Void, onSpace: @escaping () -> Void, onHide: @escaping () -> Void, onToggleHiddenVisibility: @escaping () -> Void, onCopy: @escaping () -> Void, onViewNotifications: @escaping () -> Void) {
-            self.onUp = onUp; self.onDown = onDown; self.onLeft = onLeft; self.onRight = onRight; self.onReturn = onReturn; self.onSpace = onSpace; self.onHide = onHide; self.onToggleHiddenVisibility = onToggleHiddenVisibility; self.onCopy = onCopy; self.onViewNotifications = onViewNotifications
-        }
-
-        deinit { monitor.map { NSEvent.removeMonitor($0) } }
     }
 }
