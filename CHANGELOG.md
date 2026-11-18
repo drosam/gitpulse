@@ -7,6 +7,10 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 
 ## [Unreleased]
 
+### Added
+
+- **Settings… → Account** shows the signed-in login and where the token comes from, with **Sign Out** and a pointer to revoking GitPulse on GitHub.
+
 ### Changed
 
 - Show hidden pull requests moved from `⌘H` to `⇧⌘H` (**View → Show Hidden Pull Requests**), so `⌘H` hides GitPulse again like other apps.
@@ -34,6 +38,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - Switching GitHub accounts (another token, `gh auth switch`, or signing in after a revoked token) no longer carries hidden pull requests, unread rows, and notification history across accounts or bursts banners for the new account. Each account keeps its own state; existing state moves to the first account that refreshes.
 - Hiding or restoring a pull request with an unread dot updates the Dock badge count right away instead of at the next refresh.
 - A review decision or check state that GitHub adds in the future is shown as none instead of failing every refresh.
+- Signing out now sticks when the token comes from `GITHUB_TOKEN` or the GitHub CLI, instead of signing straight back in. The sign-in screen offers to use that token again.
 - Overlapping refreshes no longer apply an older response over a newer one, and a refresh finishing after sign-out no longer brings the dashboard back.
 - A pull request's icon no longer turns into a magenta square after it enters the merge queue or merges while GitPulse is open.
 

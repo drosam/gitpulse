@@ -11,14 +11,14 @@ enum TokenStore {
     private static let service = "dev.davidrosa.gitpulse.github-token"
     private static let account = "github"
 
-    static func resolve() -> String? {
+    static func resolve() -> ResolvedToken? {
         if let env = ProcessInfo.processInfo.environment["GITHUB_TOKEN"], !env.isEmpty {
-            return env
+            return ResolvedToken(token: env, source: .environment)
         }
         if let stored = readKeychain() {
-            return stored
+            return ResolvedToken(token: stored, source: .keychain)
         }
-        return ghCLIToken()
+        return ghCLIToken().map { ResolvedToken(token: $0, source: .githubCLI) }
     }
 
     // MARK: - Keychain

@@ -113,6 +113,8 @@ public final class Session {
     private static let lastMyPullRequestIDsKey = "lastMyPullRequestIDs"
     private static let hiddenPullRequestsKey = "hiddenPullRequests"
     private static let stateAccountKey = "stateAccount"
+    /// Set by Sign out so `start()` doesn't pick an environment or gh CLI token back up.
+    private static let signedOutKey = "signedOut"
     private static let accountStateKeys = [
         activityKey, unreadKey, unreadNotificationsKey, mergedKey, reviewRequestsKey,
         lastMergeCheckKey, pendingMergedPullRequestsKey, lastMyPullRequestIDsKey, hiddenPullRequestsKey,
@@ -241,14 +243,33 @@ public final class Session {
         unreadURLs.subtracting(hiddenPRURLs)
     }
 
+    /// Where the signed-in token came from; nil while signed out.
+    private(set) var tokenSource: TokenSource?
+    /// A token GitPulse can't delete (environment or gh CLI), offered on the sign-in screen after sign-out.
+    private(set) var externalTokenSource: TokenSource?
+    var viewerLogin: String? { fetchedDashboard?.viewer }
+
     public func start() async {
+        if defaults.bool(forKey: Self.signedOutKey) {
+            externalTokenSource = dependencies.tokens.resolve()?.source
+            state = .signedOut
+            return
+        }
         guard let resolved = dependencies.tokens.resolve() else {
             state = .signedOut
             return
         }
-        token = resolved
+        token = resolved.token
+        tokenSource = resolved.source
+        externalTokenSource = nil
         await refresh()
         startAutoRefresh()
+    }
+
+    /// Signs in again with the environment or gh CLI token after an explicit sign-out.
+    func useExternalToken() async {
+        defaults.removeObject(forKey: Self.signedOutKey)
+        await start()
     }
 
     public func refresh() async {
@@ -272,7 +293,10 @@ public final class Session {
             state = .authorizing(authorization)
             let newToken = try await dependencies.deviceFlow.pollForToken(authorization)
             dependencies.tokens.save(newToken)
+            defaults.removeObject(forKey: Self.signedOutKey)
             token = newToken
+            tokenSource = .keychain
+            externalTokenSource = nil
             await refresh()
             startAutoRefresh()
         } catch {
@@ -291,7 +315,10 @@ public final class Session {
         }
         updateDockBadge()
         dependencies.tokens.clear()
+        defaults.set(true, forKey: Self.signedOutKey)
         token = nil
+        tokenSource = nil
+        externalTokenSource = dependencies.tokens.resolve()?.source
         state = .signedOut
     }
 
@@ -387,6 +414,8 @@ public final class Session {
             autoRefreshTask = nil
             dependencies.tokens.clear()
             token = nil
+            tokenSource = nil
+            externalTokenSource = dependencies.tokens.resolve()?.source
             fetchedDashboard = nil
             refreshError = "Your GitHub sign-in expired or was revoked. Sign in again."
             state = .signedOut

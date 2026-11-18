@@ -170,7 +170,11 @@ struct SessionHarness {
     let source: StubDashboardSource
     let session: Session
 
-    init(defaults: UserDefaults = makeDefaults(), dashboards: [Dashboard] = []) {
+    init(
+        defaults: UserDefaults = makeDefaults(),
+        dashboards: [Dashboard] = [],
+        tokens: TokenProvider = TokenProvider(resolve: { ResolvedToken(token: "test-token", source: .keychain) }, save: { _ in }, clear: {})
+    ) {
         self.defaults = defaults
         settings = AppSettings(defaults: defaults)
         notifier = RecordingNotifier()
@@ -181,7 +185,7 @@ struct SessionHarness {
             dependencies: Session.Dependencies(
                 notifier: notifier,
                 dashboardSource: source,
-                tokens: TokenProvider(resolve: { "test-token" }, save: { _ in }, clear: {}),
+                tokens: tokens,
                 deviceFlow: DeviceFlow(),
                 setDockBadge: { [badge] in badge.record($0) }
             )

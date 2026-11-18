@@ -11,6 +11,22 @@ public struct SettingsView: View {
         @Bindable var settings = settings
 
         Form {
+            Section("Account") {
+                if let source = session.tokenSource {
+                    LabeledContent("Signed in as", value: session.viewerLogin.map(\.githubMention) ?? "…")
+                    LabeledContent("Token from", value: source.label)
+                    Button("Sign Out") {
+                        session.signOut()
+                    }
+                    Text("Signing out clears this account's hidden pull requests and unread dots in GitPulse. It doesn't revoke GitPulse's access on GitHub; do that at github.com/settings/applications.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Not signed in. Open GitPulse to sign in.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section("Notifications") {
                 Toggle("Show notification banners", isOn: $settings.showNotificationBanners)
                 Toggle("Play notification sounds", isOn: $settings.playNotificationSounds)

@@ -349,8 +349,21 @@ struct SignInView: View {
                 Task { await session.signIn() }
             }
             .buttonStyle(.borderedProminent)
+            if let source = session.externalTokenSource {
+                Button(useTokenLabel(source)) {
+                    Task { await session.useExternalToken() }
+                }
+            }
         }
         .padding()
+    }
+
+    private func useTokenLabel(_ source: TokenSource) -> String {
+        switch source {
+        case .environment: "Use GITHUB_TOKEN"
+        case .githubCLI: "Use GitHub CLI Token"
+        case .keychain: "Use Saved Token"
+        }
     }
 }
 

@@ -125,6 +125,8 @@ The device flow uses a registered OAuth app (client ID in `Sources/GitPulse/GitH
 
 The token needs the `repo` scope (covers private-repo search) and `read:org` (lets search see org PRs). GitPulse only reads; it never writes to GitHub. Classic personal access tokens with those scopes also work via `GITHUB_TOKEN`.
 
+**Settings… → Account** shows the signed-in login, where the token comes from, and **Sign Out**. Signing out deletes the Keychain token and this account's hidden and unread state, and GitPulse stays signed out across relaunches even if `GITHUB_TOKEN` or `gh` still has a token; the sign-in screen then offers **Use GITHUB_TOKEN** or **Use GitHub CLI Token** to sign back in with it. Signing out doesn't revoke GitPulse's access on GitHub: revoke it under **Authorized OAuth Apps** at [github.com/settings/applications](https://github.com/settings/applications).
+
 ## Privacy
 
 - The token stays in your environment, your login Keychain, or the GitHub CLI's store.
