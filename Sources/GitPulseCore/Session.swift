@@ -97,6 +97,8 @@ public final class Session {
     private var lastMergeCheck: Date?
     /// Repository filter of the last successful fetch; a change reseeds the ID baselines silently.
     private var fetchedRepositories: [String]?
+    /// GitHub login that owns the loaded state; nil until the first fetch after upgrading from unscoped keys.
+    private var stateAccount: String?
 
     private static let autoRefreshInterval: Duration = .seconds(120)
     private static let activityKey = "lastActivityAt"
@@ -110,6 +112,11 @@ public final class Session {
     static let pendingMergedPullRequestsKey = "pendingMergedPullRequests"
     private static let lastMyPullRequestIDsKey = "lastMyPullRequestIDs"
     private static let hiddenPullRequestsKey = "hiddenPullRequests"
+    private static let stateAccountKey = "stateAccount"
+    private static let accountStateKeys = [
+        activityKey, unreadKey, unreadNotificationsKey, mergedKey, reviewRequestsKey,
+        lastMergeCheckKey, pendingMergedPullRequestsKey, lastMyPullRequestIDsKey, hiddenPullRequestsKey,
+    ]
 
     public convenience init() {
         self.init(settings: .shared, defaults: .standard, dependencies: .live)
@@ -119,46 +126,103 @@ public final class Session {
         self.settings = settings
         self.defaults = defaults
         self.dependencies = dependencies
-        if let data = defaults.data(forKey: Self.activityKey),
+        stateAccount = defaults.string(forKey: Self.stateAccountKey)
+        loadAccountState()
+        dependencies.notifier.onOpenPullRequest = { [weak self] url in
+            self?.markRead(prURL: url)
+        }
+    }
+
+    /// Saved state lives under `accounts.<login>.`; unscoped keys predate per-account state.
+    private func key(_ base: String) -> String {
+        stateAccount.map { "accounts.\($0).\(base)" } ?? base
+    }
+
+    private func loadAccountState() {
+        if let data = defaults.data(forKey: key(Self.activityKey)),
            let decoded = try? JSONDecoder().decode([String: Date].self, from: data) {
             lastActivityAt = decoded
         }
-        if let data = defaults.data(forKey: Self.unreadKey),
+        if let data = defaults.data(forKey: key(Self.unreadKey)),
            let decoded = try? JSONDecoder().decode(Set<URL>.self, from: data) {
             unreadURLs = decoded
         }
-        if let data = defaults.data(forKey: Self.unreadNotificationsKey),
+        if let data = defaults.data(forKey: key(Self.unreadNotificationsKey)),
            let decoded = try? JSONDecoder().decode([String: [UnreadNotification]].self, from: data) {
             unreadNotifications = decoded
         }
-        if let data = defaults.data(forKey: Self.hiddenPullRequestsKey),
+        if let data = defaults.data(forKey: key(Self.hiddenPullRequestsKey)),
            let decoded = try? JSONDecoder().decode([HiddenPullRequest].self, from: data) {
             hiddenPullRequests = decoded
         }
-        if let data = defaults.data(forKey: Self.pendingMergedPullRequestsKey),
+        if let data = defaults.data(forKey: key(Self.pendingMergedPullRequestsKey)),
            let decoded = try? JSONDecoder().decode([PullRequest].self, from: data) {
             pendingMergedPullRequests = decoded
         }
-        if let data = defaults.data(forKey: Self.lastMyPullRequestIDsKey),
+        if let data = defaults.data(forKey: key(Self.lastMyPullRequestIDsKey)),
            let decoded = try? JSONDecoder().decode(Set<PullRequest.ID>.self, from: data) {
             lastMyPullRequestIDs = decoded
         }
         // A persisted set means a prior run already seeded; banner anything new
         // on the first refresh. A fresh install seeds silently instead.
-        if let data = defaults.data(forKey: Self.mergedKey),
+        if let data = defaults.data(forKey: key(Self.mergedKey)),
            let decoded = try? JSONDecoder().decode(Set<PullRequest.ID>.self, from: data) {
             knownMergedIDs = decoded
             hasSeededMerged = true
         }
-        lastMergeCheck = defaults.object(forKey: Self.lastMergeCheckKey) as? Date
-        if let data = defaults.data(forKey: Self.reviewRequestsKey),
+        lastMergeCheck = defaults.object(forKey: key(Self.lastMergeCheckKey)) as? Date
+        if let data = defaults.data(forKey: key(Self.reviewRequestsKey)),
            let decoded = try? JSONDecoder().decode(Set<PullRequest.ID>.self, from: data) {
             knownReviewRequestIDs = decoded
             hasSeededReviewRequests = true
         }
-        dependencies.notifier.onOpenPullRequest = { [weak self] url in
-            self?.markRead(prURL: url)
+    }
+
+    /// Makes `viewer` own the loaded state. Unscoped state moves to the first account seen;
+    /// another account's state is swapped out. Returns true when the account changed.
+    private func switchAccount(to viewer: String) -> Bool {
+        let viewer = viewer.lowercased()
+        guard !viewer.isEmpty, viewer != stateAccount else { return false }
+        guard stateAccount != nil else {
+            for base in Self.accountStateKeys {
+                if let value = defaults.object(forKey: base) {
+                    defaults.set(value, forKey: "accounts.\(viewer).\(base)")
+                    defaults.removeObject(forKey: base)
+                }
+            }
+            stateAccount = viewer
+            defaults.set(viewer, forKey: Self.stateAccountKey)
+            return false
         }
+        stateAccount = viewer
+        defaults.set(viewer, forKey: Self.stateAccountKey)
+        resetLocalState()
+        loadAccountState()
+        updateDockBadge()
+        return true
+    }
+
+    /// Clears in-memory per-account state; persisted state is untouched.
+    private func resetLocalState() {
+        rateLimitedUntil = nil
+        lastActivityAt = [:]
+        lastCheckState = [:]
+        checkedPullRequestIDs = []
+        knownReviewRequestIDs = []
+        hasSeededReviewRequests = false
+        hasSeededChecks = false
+        prsInMergeQueue = []
+        hasSeededMergeQueue = false
+        knownMergedIDs = []
+        hasSeededMerged = false
+        lastMergeCheck = nil
+        unreadURLs = []
+        unreadNotifications = [:]
+        hiddenPullRequests = []
+        pendingMergedPullRequests = []
+        lastMyPullRequestIDs = []
+        fetchedRepositories = nil
+        fetchedDashboard = nil
     }
 
     public var hasUnread: Bool { !visibleUnreadURLs.isEmpty }
@@ -219,35 +283,12 @@ public final class Session {
     func signOut() {
         autoRefreshTask?.cancel()
         autoRefreshTask = nil
-        rateLimitedUntil = nil
-        lastActivityAt = [:]
-        lastCheckState = [:]
-        checkedPullRequestIDs = []
-        knownReviewRequestIDs = []
-        hasSeededReviewRequests = false
-        hasSeededChecks = false
-        prsInMergeQueue = []
-        hasSeededMergeQueue = false
-        knownMergedIDs = []
-        hasSeededMerged = false
-        lastMergeCheck = nil
-        unreadURLs = []
-        unreadNotifications = [:]
-        hiddenPullRequests = []
-        pendingMergedPullRequests = []
-        lastMyPullRequestIDs = []
-        fetchedDashboard = nil
+        resetLocalState()
         refreshError = nil
         refreshGeneration += 1
-        defaults.removeObject(forKey: Self.activityKey)
-        defaults.removeObject(forKey: Self.unreadKey)
-        defaults.removeObject(forKey: Self.unreadNotificationsKey)
-        defaults.removeObject(forKey: Self.mergedKey)
-        defaults.removeObject(forKey: Self.lastMergeCheckKey)
-        defaults.removeObject(forKey: Self.reviewRequestsKey)
-        defaults.removeObject(forKey: Self.pendingMergedPullRequestsKey)
-        defaults.removeObject(forKey: Self.lastMyPullRequestIDsKey)
-        defaults.removeObject(forKey: Self.hiddenPullRequestsKey)
+        for base in Self.accountStateKeys {
+            defaults.removeObject(forKey: key(base))
+        }
         updateDockBadge()
         dependencies.tokens.clear()
         token = nil
@@ -371,7 +412,8 @@ public final class Session {
         updateDisplay()
     }
 
-    private func fetchDashboard(token: String) async throws -> Dashboard {
+    /// Refetches once after an account switch so the request carries that account's tracked IDs.
+    private func fetchDashboard(token: String, afterAccountSwitch: Bool = false) async throws -> Dashboard {
         let repositories = settings.activeRepositories
         refreshGeneration += 1
         let generation = refreshGeneration
@@ -388,6 +430,9 @@ public final class Session {
             throw error
         }
         guard generation == refreshGeneration else { throw CancellationError() }
+        if switchAccount(to: dashboard.viewer), !afterAccountSwitch {
+            return try await fetchDashboard(token: token, afterAccountSwitch: true)
+        }
         rateLimitedUntil = nil
         if let fetchedRepositories, fetchedRepositories != repositories {
             hasSeededReviewRequests = false
@@ -600,32 +645,32 @@ public final class Session {
 
     private func saveHiddenPullRequests() {
         if let data = try? JSONEncoder().encode(hiddenPullRequests) {
-            defaults.set(data, forKey: Self.hiddenPullRequestsKey)
+            defaults.set(data, forKey: key(Self.hiddenPullRequestsKey))
         }
     }
 
     private func saveNotificationState() {
         if let data = try? JSONEncoder().encode(lastActivityAt) {
-            defaults.set(data, forKey: Self.activityKey)
+            defaults.set(data, forKey: key(Self.activityKey))
         }
         if let data = try? JSONEncoder().encode(unreadURLs) {
-            defaults.set(data, forKey: Self.unreadKey)
+            defaults.set(data, forKey: key(Self.unreadKey))
         }
         if let data = try? JSONEncoder().encode(unreadNotifications) {
-            defaults.set(data, forKey: Self.unreadNotificationsKey)
+            defaults.set(data, forKey: key(Self.unreadNotificationsKey))
         }
         if let data = try? JSONEncoder().encode(knownMergedIDs) {
-            defaults.set(data, forKey: Self.mergedKey)
+            defaults.set(data, forKey: key(Self.mergedKey))
         }
-        defaults.set(lastMergeCheck, forKey: Self.lastMergeCheckKey)
+        defaults.set(lastMergeCheck, forKey: key(Self.lastMergeCheckKey))
         if let data = try? JSONEncoder().encode(knownReviewRequestIDs) {
-            defaults.set(data, forKey: Self.reviewRequestsKey)
+            defaults.set(data, forKey: key(Self.reviewRequestsKey))
         }
         if let data = try? JSONEncoder().encode(pendingMergedPullRequests) {
-            defaults.set(data, forKey: Self.pendingMergedPullRequestsKey)
+            defaults.set(data, forKey: key(Self.pendingMergedPullRequestsKey))
         }
         if let data = try? JSONEncoder().encode(lastMyPullRequestIDs) {
-            defaults.set(data, forKey: Self.lastMyPullRequestIDsKey)
+            defaults.set(data, forKey: key(Self.lastMyPullRequestIDsKey))
         }
     }
 

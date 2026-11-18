@@ -31,6 +31,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - A failed refresh no longer replaces the dashboard with an error screen: the last pull requests stay visible with the error shown above them. Restoring a hidden pull request and showing hidden pull requests work offline and no longer refetch from GitHub.
 - Automatic refreshes that fail now show the same error above the dashboard instead of silently leaving stale data. A revoked or expired GitHub sign-in returns to the sign-in screen with an explanation and keeps unread and hidden pull requests.
 - **Only selected repositories** with no valid entry now shows no pull requests instead of every repository, and Settings lists the ignored lines. GitHub repository URLs are accepted as entries.
+- Switching GitHub accounts (another token, `gh auth switch`, or signing in after a revoked token) no longer carries hidden pull requests, unread rows, and notification history across accounts or bursts banners for the new account. Each account keeps its own state; existing state moves to the first account that refreshes.
 - Overlapping refreshes no longer apply an older response over a newer one, and a refresh finishing after sign-out no longer brings the dashboard back.
 - A pull request's icon no longer turns into a magenta square after it enters the merge queue or merges while GitPulse is open.
 

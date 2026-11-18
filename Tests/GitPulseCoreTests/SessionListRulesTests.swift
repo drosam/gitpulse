@@ -215,7 +215,47 @@ struct SessionListRulesTests {
         if case .signedOut = harness.session.state {} else {
             Issue.record("Expected signed-out state")
         }
-        #expect(harness.defaults.object(forKey: "lastMyPullRequestIDs") == nil)
+        #expect(harness.defaults.object(forKey: "accounts.octocat.lastMyPullRequestIDs") == nil)
+    }
+
+    @Test func eachAccountKeepsItsOwnState() async {
+        let requestA = makePR("req-a", createdAt: "2026-01-02T00:00:00Z", updatedAt: "2026-01-02T00:00:00Z")
+        let requestA2 = makePR("req-a2", createdAt: "2026-01-04T00:00:00Z", updatedAt: "2026-01-04T00:00:00Z")
+        let requestB = makePR("req-b", createdAt: "2026-01-03T00:00:00Z", updatedAt: "2026-01-03T00:00:00Z")
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(viewer: "alice", mine: [older], reviews: [requestA]))
+        harness.session.hide(older)
+
+        await harness.source.enqueue(makeDashboard(viewer: "bob", mine: [newer], reviews: [requestB]))
+        await harness.session.refresh()
+
+        #expect(harness.notifier.posts.isEmpty)
+        #expect(harness.session.hiddenPullRequests.isEmpty)
+        #expect(await harness.source.trackedIDsPerCall.last == [])
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["new"])
+
+        await harness.source.enqueue(makeDashboard(viewer: "alice", mine: [older], reviews: [requestA, requestA2]))
+        await harness.session.refresh()
+
+        #expect(harness.session.hiddenPullRequests.map(\.url) == [older.url])
+        #expect(harness.notifier.posts == [.reviewRequest("req-a2")])
+        #expect(await harness.source.trackedIDsPerCall.last == ["old"])
+    }
+
+    @Test func firstAccountAdoptsStateFromBeforeAccounts() async throws {
+        let defaults = makeDefaults()
+        let hidden = Session.HiddenPullRequest(url: older.url, title: older.title, repository: older.repository, number: older.number)
+        defaults.set(try JSONEncoder().encode([hidden]), forKey: "hiddenPullRequests")
+        defaults.set(try JSONEncoder().encode(Set(["merged-before"])), forKey: "knownMergedIDs")
+        let harness = SessionHarness(defaults: defaults)
+        await harness.load(makeDashboard(mine: [older, newer]))
+
+        #expect(harness.session.hiddenPullRequests.map(\.url) == [older.url])
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["new"])
+        #expect(defaults.object(forKey: "hiddenPullRequests") == nil)
+        #expect(defaults.object(forKey: "accounts.octocat.hiddenPullRequests") != nil)
+        #expect(defaults.object(forKey: "knownMergedIDs") == nil)
+        #expect(defaults.object(forKey: "accounts.octocat.knownMergedIDs") != nil)
     }
 
     @Test func selectedScopeWithNoValidRepositoryShowsNothingWithoutFetching() async {
@@ -241,7 +281,7 @@ struct SessionListRulesTests {
 
         for key in ["lastActivityAt", "unreadURLs", "unreadNotifications", "knownMergedIDs",
                     "pendingMergedPullRequests", "lastMyPullRequestIDs", "hiddenPullRequests"] {
-            #expect(harness.defaults.object(forKey: key) == nil, "\(key) should be cleared")
+            #expect(harness.defaults.object(forKey: "accounts.octocat.\(key)") == nil, "\(key) should be cleared")
         }
         if case .signedOut = harness.session.state {} else {
             Issue.record("Expected signed-out state")

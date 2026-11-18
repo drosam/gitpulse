@@ -102,6 +102,7 @@ This builds a release binary for your Mac, generates the icon, and installs an a
 - When shown, hidden PRs move to the bottom of each list, keep their relative order, and are dimmed and marked **Hidden**.
 - Hidden PRs can still show a row-level blue unread dot, but they do not drive the menu bar dot, Dock badge, notification banners, or sounds.
 - Restore one or all hidden PRs from **Settings… → Hidden Pull Requests**.
+- Hidden PRs, unread dots, and notification history are kept per GitHub account, so switching accounts restores each account's own state. Signing out clears the signed-in account's state.
 
 ## Troubleshooting
 
