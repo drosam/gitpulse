@@ -26,6 +26,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - Changing the repository filter no longer shows a burst of "Review requested" and "Merged" banners and unread rows for pull requests that were already there.
 - A pull request that merged long ago no longer shows a "Merged" banner and unread row when someone comments on it or changes it.
 - A review request that arrives while GitPulse is closed now shows a banner and an unread dot on the next launch.
+- Opening a pull request from its banner now clears its unread dot, the Dock badge count, and its merged row, like opening the row does.
 - A pull request's icon no longer turns into a magenta square after it enters the merge queue or merges while GitPulse is open.
 
 ### Security

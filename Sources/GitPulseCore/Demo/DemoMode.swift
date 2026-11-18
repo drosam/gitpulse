@@ -57,6 +57,7 @@ struct DemoDashboardSource: DashboardSource {
 
 @MainActor
 final class SilentNotifier: NotificationPosting {
+    var onOpenPullRequest: (@MainActor (URL) -> Void)?
     func postCheckResult(for pullRequest: PullRequest, passed: Bool) {}
     func postActivity(for pullRequest: PullRequest, event: PullRequest.ActivityEvent) {}
     func postMerged(for pullRequest: PullRequest) {}

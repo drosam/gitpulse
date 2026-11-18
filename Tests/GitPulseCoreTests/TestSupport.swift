@@ -89,6 +89,7 @@ final class RecordingNotifier: NotificationPosting {
     }
 
     private(set) var posts: [Post] = []
+    var onOpenPullRequest: (@MainActor (URL) -> Void)?
 
     func postCheckResult(for pullRequest: PullRequest, passed: Bool) { posts.append(.check(pullRequest.id, passed: passed)) }
     func postActivity(for pullRequest: PullRequest, event: PullRequest.ActivityEvent) { posts.append(.activity(pullRequest.id, author: event.author)) }

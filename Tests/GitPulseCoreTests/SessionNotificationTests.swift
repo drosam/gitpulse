@@ -99,6 +99,19 @@ struct SessionNotificationTests {
         #expect(!harness.session.hasUnread)
     }
 
+    @Test func openingFromBannerMarksPullRequestRead() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(merged: []))
+        await harness.load(makeDashboard(merged: [prM]))
+        #expect(harness.session.unreadPRURLs == [prM.url])
+        #expect(harness.dashboard?.myPRs.map(\.id) == ["M"])
+
+        harness.notifier.onOpenPullRequest?(prM.url)
+
+        #expect(harness.session.unreadPRURLs.isEmpty)
+        #expect(harness.dashboard?.myPRs.isEmpty == true)
+    }
+
     @Test func firstActivityOnQuietPullRequestPosts() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [makePR("A")]))

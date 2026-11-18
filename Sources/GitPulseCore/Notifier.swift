@@ -10,6 +10,8 @@ protocol NotificationPosting: AnyObject {
     func postMerged(for pullRequest: PullRequest)
     func postMergeQueueExit(for pullRequest: PullRequest)
     func postReviewRequest(for pullRequest: PullRequest)
+    /// Called with the PR URL after the user opens it from a banner.
+    var onOpenPullRequest: (@MainActor (URL) -> Void)? { get set }
 }
 
 /// Posts macOS notifications for new GitHub activity; clicking one opens
@@ -24,6 +26,7 @@ public final class Notifier: NSObject, UNUserNotificationCenterDelegate, Notific
 
     @ObservationIgnored private let available = Bundle.main.bundleIdentifier != nil
     @ObservationIgnored private let settings = AppSettings.shared
+    @ObservationIgnored var onOpenPullRequest: (@MainActor (URL) -> Void)?
 
     /// True when the user has denied notification permission, so banners are
     /// silently dropped by the system. Surfaced in the UI so it isn't a mystery.
@@ -171,8 +174,9 @@ public final class Notifier: NSObject, UNUserNotificationCenterDelegate, Notific
         guard let string = response.notification.request.content.userInfo["url"] as? String,
               let url = URL(string: string),
               SafeURL.isAllowed(url) else { return }
-        _ = await MainActor.run {
+        await MainActor.run {
             NSWorkspace.shared.open(url)
+            onOpenPullRequest?(url)
         }
     }
 }

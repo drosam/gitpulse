@@ -91,7 +91,7 @@ This builds a release binary for your Mac, generates the icon, and installs an a
 
 - When a PR you authored or are assigned to merges, GitPulse keeps it temporarily in **My pull requests**.
 - Merged rows use GitHub's purple merge icon, show a **Merged** pill, and drive the row dot, menu bar dot, and Dock badge like other unread items.
-- Open the row or press Space to clear it. Once cleared, the merged row is removed from the list.
+- Open the row or its banner, or press Space, to clear it. Once cleared, the merged row is removed from the list.
 - Merged PRs are never added to **Review requested**.
 
 ## Hiding pull requests

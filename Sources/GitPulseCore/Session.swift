@@ -150,6 +150,9 @@ public final class Session {
             knownReviewRequestIDs = decoded
             hasSeededReviewRequests = true
         }
+        dependencies.notifier.onOpenPullRequest = { [weak self] url in
+            self?.markRead(prURL: url)
+        }
     }
 
     public var hasUnread: Bool { !visibleUnreadURLs.isEmpty }
