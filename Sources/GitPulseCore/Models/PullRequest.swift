@@ -59,6 +59,8 @@ struct PullRequest: Identifiable, Hashable, Codable, Sendable {
     var deletions: Int
     var createdAt: Date
     var updatedAt: Date
+    /// Nil for open PRs and for merged rows persisted before this field existed.
+    var mergedAt: Date? = nil
 }
 
 extension String {

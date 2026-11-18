@@ -30,7 +30,8 @@ func makePR(
     mergeQueueState: String? = nil,
     activity: [PullRequest.ActivityEvent] = [],
     createdAt: String = "2026-01-01T00:00:00Z",
-    updatedAt: String = "2026-01-02T00:00:00Z"
+    updatedAt: String = "2026-01-02T00:00:00Z",
+    mergedAt: Date? = nil
 ) -> PullRequest {
     PullRequest(
         id: id,
@@ -52,7 +53,8 @@ func makePR(
         additions: 1,
         deletions: 1,
         createdAt: date(createdAt),
-        updatedAt: date(updatedAt)
+        updatedAt: date(updatedAt),
+        mergedAt: mergedAt
     )
 }
 

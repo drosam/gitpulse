@@ -85,6 +85,9 @@ public final class Session {
     /// that lands while the app is closed banners once on the next launch.
     private var knownMergedIDs: Set<PullRequest.ID> = []
     private var hasSeededMerged = false
+    /// When merges were last checked. Persisted; an unseen PR merged before this is old history
+    /// that entered the updated-first search window, not a new merge.
+    private var lastMergeCheck: Date?
     /// Repository filter of the last successful fetch; a change reseeds the ID baselines silently.
     private var fetchedRepositories: [String]?
 
@@ -93,6 +96,9 @@ public final class Session {
     static let unreadKey = "unreadURLs"
     static let unreadNotificationsKey = "unreadNotifications"
     static let mergedKey = "knownMergedIDs"
+    private static let lastMergeCheckKey = "lastMergeCheck"
+    /// Slack for clock skew and search indexing lag when comparing `mergedAt` to `lastMergeCheck`.
+    private static let mergeCheckMargin: TimeInterval = 3600
     static let pendingMergedPullRequestsKey = "pendingMergedPullRequests"
     private static let lastMyPullRequestIDsKey = "lastMyPullRequestIDs"
     private static let hiddenPullRequestsKey = "hiddenPullRequests"
@@ -136,6 +142,7 @@ public final class Session {
             knownMergedIDs = decoded
             hasSeededMerged = true
         }
+        lastMergeCheck = defaults.object(forKey: Self.lastMergeCheckKey) as? Date
     }
 
     public var hasUnread: Bool { !visibleUnreadURLs.isEmpty }
@@ -206,6 +213,7 @@ public final class Session {
         hasSeededMergeQueue = false
         knownMergedIDs = []
         hasSeededMerged = false
+        lastMergeCheck = nil
         unreadURLs = []
         unreadNotifications = [:]
         hiddenPullRequests = []
@@ -215,6 +223,7 @@ public final class Session {
         defaults.removeObject(forKey: Self.unreadKey)
         defaults.removeObject(forKey: Self.unreadNotificationsKey)
         defaults.removeObject(forKey: Self.mergedKey)
+        defaults.removeObject(forKey: Self.lastMergeCheckKey)
         defaults.removeObject(forKey: Self.pendingMergedPullRequestsKey)
         defaults.removeObject(forKey: Self.lastMyPullRequestIDsKey)
         defaults.removeObject(forKey: Self.hiddenPullRequestsKey)
@@ -425,8 +434,10 @@ public final class Session {
     /// Keeps merged PRs as unread rows in My pull requests until opened.
     private func detectMergedPRs(in dashboard: Dashboard) {
         let ids = Set(dashboard.recentlyMerged.map(\.id))
+        let cutoff = lastMergeCheck?.addingTimeInterval(-Self.mergeCheckMargin) ?? .distantPast
         if hasSeededMerged {
-            for pr in dashboard.recentlyMerged where !knownMergedIDs.contains(pr.id) && !isHidden(pr) {
+            for pr in dashboard.recentlyMerged where !knownMergedIDs.contains(pr.id) && !isHidden(pr)
+                && (pr.mergedAt ?? .distantFuture) > cutoff {
                 recordUnread(pr, subtitle: "Merged", id: "merged-\(pr.id)", createdAt: pr.updatedAt)
                 pendingMergedPullRequests.removeAll { $0.id == pr.id }
                 pendingMergedPullRequests.append(pr)
@@ -436,6 +447,7 @@ public final class Session {
         knownMergedIDs.formUnion(ids)
         lastMyPullRequestIDs = Set(dashboard.myPRs.map(\.id))
         hasSeededMerged = true
+        lastMergeCheck = Date()
     }
 
     /// Drops per-PR tracking state for PRs no longer shown in the app, so the
@@ -547,6 +559,7 @@ public final class Session {
         if let data = try? JSONEncoder().encode(knownMergedIDs) {
             defaults.set(data, forKey: Self.mergedKey)
         }
+        defaults.set(lastMergeCheck, forKey: Self.lastMergeCheckKey)
         if let data = try? JSONEncoder().encode(pendingMergedPullRequests) {
             defaults.set(data, forKey: Self.pendingMergedPullRequestsKey)
         }

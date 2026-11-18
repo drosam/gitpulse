@@ -23,7 +23,7 @@ struct SessionNotificationTests {
     )
     private let prC = makePR("C", author: "hubot")
     private let prD = makePR("D", author: "hubot")
-    private let prM = makePR("M", isMerged: true, updatedAt: "2026-01-05T00:00:00Z")
+    private let prM = makePR("M", isMerged: true, updatedAt: "2026-01-05T00:00:00Z", mergedAt: Date())
 
     @Test func firstRefreshSeedsSilently() async {
         let harness = SessionHarness()
@@ -87,6 +87,16 @@ struct SessionNotificationTests {
 
         await harness.load(makeDashboard(reviews: [prC, other, prD], merged: [prM, otherMerged]))
         #expect(harness.notifier.posts == [.reviewRequest("D")])
+    }
+
+    @Test func touchedLongMergedPullRequestDoesNotPostMerged() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(merged: [prM]))
+        let oldMerge = makePR("O", isMerged: true, mergedAt: date("2026-01-01T00:00:00Z"))
+        await harness.load(makeDashboard(merged: [oldMerge, prM]))
+
+        #expect(harness.notifier.posts.isEmpty)
+        #expect(!harness.session.hasUnread)
     }
 
     @Test func firstActivityOnQuietPullRequestPosts() async {

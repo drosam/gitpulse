@@ -24,6 +24,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - Commenting on or reviewing someone else's pull request no longer shows a "Review requested" banner for it; the banner now appears only when GitHub requests your review, including a new request on a pull request you already reviewed.
 - A comment-only review after approving no longer puts the pull request back in **Review requested**, and an approval stays remembered on pull requests with many reviews.
 - Changing the repository filter no longer shows a burst of "Review requested" and "Merged" banners and unread rows for pull requests that were already there.
+- A pull request that merged long ago no longer shows a "Merged" banner and unread row when someone comments on it or changes it.
 - A pull request's icon no longer turns into a magenta square after it enters the merge queue or merges while GitPulse is open.
 
 ### Security

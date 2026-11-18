@@ -85,6 +85,7 @@ struct DashboardDecodingTests {
         let merged = try decode().recentlyMerged
         #expect(merged.map(\.id) == ["PR_M2", "PR_M1"])
         #expect(merged.allSatisfy { $0.isMerged })
+        #expect(merged.map(\.mergedAt) == [date("2026-01-10T09:00:00Z"), date("2026-01-08T10:00:00Z")])
     }
 
     /// The dashboard fixture with `tracked` replaced and the given GraphQL errors added.

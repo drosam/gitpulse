@@ -90,7 +90,7 @@ struct GitHubClient: Sendable {
           }
         }
         fragment prSummary on PullRequest {
-          id number title url state isDraft isInMergeQueue reviewDecision additions deletions createdAt updatedAt
+          id number title url state isDraft isInMergeQueue reviewDecision additions deletions createdAt updatedAt mergedAt
           headRefName
           totalCommentsCount
           repository { nameWithOwner }
@@ -256,6 +256,7 @@ private struct PRNode: Decodable {
     var deletions: Int?
     var createdAt: Date?
     var updatedAt: Date?
+    var mergedAt: Date?
     var totalCommentsCount: Int?
     var repository: Repository?
     var author: Author?
@@ -350,7 +351,8 @@ private struct PRNode: Decodable {
             additions: additions ?? 0,
             deletions: deletions ?? 0,
             createdAt: createdAt ?? updatedAt,
-            updatedAt: updatedAt
+            updatedAt: updatedAt,
+            mergedAt: mergedAt
         )
     }
 }
