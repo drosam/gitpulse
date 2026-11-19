@@ -91,4 +91,4 @@ Tags `vX.Y.Z-(alpha|beta|rc)[.N]` are published as prereleases and don't touch t
 
 - A `release` environment in this repository with you as required reviewer.
 - A GitHub App installed on `drosam/homebrew-tap` with **Contents: read and write**. Store its client ID as the `TAP_APP_CLIENT_ID` variable and its private key as the `TAP_APP_PRIVATE_KEY` secret, in the `release` environment or at repository level.
-- `Casks/gitpulse.rb` present in the tap. A reference copy is in `packaging/homebrew/gitpulse.rb`.
+- `Casks/gitpulse.rb` present in the tap. A reference copy is in `packaging/homebrew/gitpulse.rb`. The release job only rewrites `version` and `sha256`, so copy any other change (such as `zap` paths) to the tap by hand.

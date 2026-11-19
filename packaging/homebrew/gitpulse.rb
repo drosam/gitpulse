@@ -26,6 +26,7 @@ cask "gitpulse" do
     "~/Library/Caches/dev.davidrosa.gitpulse",
     "~/Library/HTTPStorages/dev.davidrosa.gitpulse",
     "~/Library/HTTPStorages/dev.davidrosa.gitpulse.binarycookies",
+    "~/Library/Preferences/dev.davidrosa.gitpulse.demo.plist",
     "~/Library/Preferences/dev.davidrosa.gitpulse.plist",
     "~/Library/Saved Application State/dev.davidrosa.gitpulse.savedState",
   ]

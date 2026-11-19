@@ -163,13 +163,14 @@ The window subtitle shows `@demo-user` in demo mode; if it shows your login, you
    make uninstall                          # source install
    ```
 
-`--zap` also deletes preferences, saved window state and the network cache that v0.1.0 wrote.
+`--zap` also deletes preferences (including demo mode's), saved window state and the network cache that v0.1.0 wrote.
 
 3. After `make uninstall`, delete the same files by hand:
 
    ```sh
    rm -rf ~/Library/Caches/dev.davidrosa.gitpulse ~/Library/HTTPStorages/dev.davidrosa.gitpulse*
    defaults delete dev.davidrosa.gitpulse
+   defaults delete dev.davidrosa.gitpulse.demo
    ```
 
 ## Contributing
