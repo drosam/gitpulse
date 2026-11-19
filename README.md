@@ -20,7 +20,9 @@ Requires macOS 15 (Sequoia) or later. Releases are universal (Apple silicon and 
 ### Homebrew (recommended)
 
 ```sh
-brew install --cask drosam/tap/gitpulse
+brew tap drosam/tap
+brew trust --tap drosam/tap   # Homebrew 6 loads third-party taps only after you trust them
+brew install --cask gitpulse
 ```
 
 Upgrade with `brew upgrade --cask gitpulse`.
@@ -106,7 +108,7 @@ This builds a release binary for your Mac, generates the icon, and installs an a
 
 ## Troubleshooting
 
-**`Refusing to load cask drosam/tap/gitpulse from untrusted tap`.** Homebrew 6 only loads third-party taps you trust. Run `brew trust drosam/tap`, then retry.
+**`Refusing to load cask drosam/tap/gitpulse from untrusted tap`.** Homebrew 6 only loads third-party taps you trust. Run `brew trust --tap drosam/tap`, then retry.
 
 **"GitPulse can't be opened" / "is damaged".** The app is unsigned. Install with Homebrew, click **Open Anyway** in **System Settings → Privacy & Security** after the first attempt, or run `xattr -dr com.apple.quarantine /Applications/GitPulse.app`.
 
