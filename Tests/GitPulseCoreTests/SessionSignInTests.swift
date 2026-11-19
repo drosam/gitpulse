@@ -3,6 +3,11 @@ import Synchronization
 import Testing
 @testable import GitPulseCore
 
+/// Blocks the calling thread, like a slow Keychain read or `gh` run; false after 2 seconds.
+private func waitBriefly(for semaphore: DispatchSemaphore) -> Bool {
+    semaphore.wait(timeout: .now() + 2) == .success
+}
+
 /// Holds a request until `open()`.
 private actor Gate {
     private var isOpen = false
@@ -121,6 +126,51 @@ struct SessionSignInTests {
         await signIn.value
 
         if case .signedOut = harness.session.state {} else { Issue.record("Expected signed-out state") }
+    }
+
+    @Test func tokenLookupRunsOffTheMainActor() async {
+        let release = DispatchSemaphore(value: 0)
+        let started = Mutex(false)
+        let timedOut = Mutex(false)
+        let tokens = TokenProvider(
+            resolve: {
+                started.withLock { $0 = true }
+                if !waitBriefly(for: release) { timedOut.withLock { $0 = true } }
+                return ResolvedToken(token: "slow-token", source: .githubCLI)
+            },
+            save: { _ in },
+            clear: {}
+        )
+        let harness = SessionHarness(tokens: tokens)
+        await harness.source.enqueue(makeDashboard())
+
+        let start = Task { await harness.session.start() }
+        while !started.withLock({ $0 }) { await Task.yield() }
+        release.signal()
+        await start.value
+
+        #expect(!timedOut.withLock { $0 })
+        #expect(harness.dashboard?.viewer == "octocat")
+    }
+
+    @Test func reopeningTheWindowReusesTheTokenInMemory() async {
+        let lookups = Mutex(0)
+        let tokens = TokenProvider(
+            resolve: {
+                lookups.withLock { $0 += 1 }
+                return ResolvedToken(token: "cli-token", source: .githubCLI)
+            },
+            save: { _ in },
+            clear: {}
+        )
+        let harness = SessionHarness(tokens: tokens)
+        await harness.load(makeDashboard())
+        await harness.source.enqueue(makeDashboard())
+
+        await harness.session.start()
+
+        #expect(lookups.withLock { $0 } == 1)
+        #expect(harness.dashboard?.viewer == "octocat")
     }
 
     @Test func usingTheExternalTokenSignsBackIn() async {

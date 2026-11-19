@@ -254,20 +254,31 @@ public final class Session {
 
     public func start() async {
         if case .authorizing = state { return }
-        if defaults.bool(forKey: Self.signedOutKey) {
-            externalTokenSource = dependencies.tokens.resolve()?.source
-            state = .signedOut
-            return
+        if token == nil {
+            if defaults.bool(forKey: Self.signedOutKey) {
+                state = .signedOut
+                await updateExternalTokenSource()
+                return
+            }
+            let resolved = await dependencies.tokens.resolve()
+            // Sign-in, sign-out or another start may have run during the lookup.
+            if case .authorizing = state { return }
+            guard token == nil, !defaults.bool(forKey: Self.signedOutKey) else { return }
+            guard let resolved else {
+                state = .signedOut
+                return
+            }
+            token = resolved.token
+            tokenSource = resolved.source
+            externalTokenSource = nil
         }
-        guard let resolved = dependencies.tokens.resolve() else {
-            state = .signedOut
-            return
-        }
-        token = resolved.token
-        tokenSource = resolved.source
-        externalTokenSource = nil
         await refresh()
         startAutoRefresh()
+    }
+
+    private func updateExternalTokenSource() async {
+        let source = await dependencies.tokens.resolve()?.source
+        if token == nil { externalTokenSource = source }
     }
 
     /// Abandons the device flow in progress and returns to the sign-in screen.
@@ -348,8 +359,8 @@ public final class Session {
         defaults.set(true, forKey: Self.signedOutKey)
         token = nil
         tokenSource = nil
-        externalTokenSource = dependencies.tokens.resolve()?.source
         state = .signedOut
+        Task { await updateExternalTokenSource() }
     }
 
     /// Called when the user opens a PR: clear its unread mark.
@@ -445,7 +456,7 @@ public final class Session {
             dependencies.tokens.clear()
             token = nil
             tokenSource = nil
-            externalTokenSource = dependencies.tokens.resolve()?.source
+            Task { await updateExternalTokenSource() }
             fetchedDashboard = nil
             refreshError = "Your GitHub sign-in expired or was revoked. Sign in again."
             state = .signedOut

@@ -36,7 +36,8 @@ struct ResolvedToken: Sendable {
 
 /// Where `Session` reads, saves, and clears the GitHub token.
 struct TokenProvider: Sendable {
-    var resolve: @Sendable () -> ResolvedToken?
+    /// Runs off the main actor: it may read the Keychain or run `gh`.
+    var resolve: @Sendable () async -> ResolvedToken?
     var save: @Sendable (String) -> Void
     var clear: @Sendable () -> Void
 

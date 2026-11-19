@@ -69,18 +69,27 @@ enum TokenStore {
         guard let gh = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             return nil
         }
+        return commandOutput(gh, ["auth", "token"], timeout: 5)
+    }
 
+    /// Trimmed stdout of a successful command, or nil on failure, empty output, or timeout (the process is killed).
+    static func commandOutput(_ executable: String, _ arguments: [String], timeout: TimeInterval) -> String? {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: gh)
-        process.arguments = ["auth", "token"]
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
         let stdout = Pipe()
         process.standardOutput = stdout
-        process.standardError = Pipe()
+        process.standardError = FileHandle.nullDevice
+        let exited = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in exited.signal() }
 
         do {
             try process.run()
-            process.waitUntilExit()
         } catch {
+            return nil
+        }
+        guard exited.wait(timeout: .now() + timeout) == .success else {
+            process.terminate()
             return nil
         }
         guard process.terminationStatus == 0 else { return nil }
