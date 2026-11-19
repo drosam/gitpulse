@@ -70,7 +70,9 @@ enum NotificationEvent: Equatable, Sendable {
     func identifier(for pullRequest: PullRequest) -> String {
         switch self {
         case .checksFinished(let state): "ci-\(pullRequest.id)-\(state.rawValue)"
-        case .activity(let event): "activity-\(pullRequest.id)-\(event.createdAt.timeIntervalSince1970)"
+        case .activity(let event):
+            // GitHub timestamps have second precision; author and kind tell same-second events apart.
+            "activity-\(pullRequest.id)-\(event.createdAt.timeIntervalSince1970)-\(event.author)-\(event.kind.identifierPart)"
         case .reviewRequested: "review-request-\(pullRequest.id)"
         case .leftMergeQueue: "queue-exit-\(pullRequest.id)-\(pullRequest.updatedAt.timeIntervalSince1970)"
         case .merged: "merged-\(pullRequest.id)"
@@ -83,6 +85,15 @@ enum NotificationEvent: Equatable, Sendable {
         case .activity(let event): event.createdAt
         case .leftMergeQueue, .merged: pullRequest.updatedAt
         case .checksFinished, .reviewRequested: now
+        }
+    }
+}
+
+private extension PullRequest.ActivityEvent.Kind {
+    var identifierPart: String {
+        switch self {
+        case .comment: "comment"
+        case .review(let state): state
         }
     }
 }

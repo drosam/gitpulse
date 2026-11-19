@@ -129,6 +129,17 @@ struct SessionNotificationTests {
         #expect(harness.notifier.posts == [.check("A", passed: false)])
     }
 
+    @Test func twoCommentsInTheSameSecondKeepBothUnreadRows() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [makePR("A")]))
+        await harness.load(makeDashboard(mine: [makePR("A", activity: [
+            comment(by: "hubot", at: "2026-01-03T00:00:00Z"),
+            comment(by: "monalisa", at: "2026-01-03T00:00:00Z"),
+        ])]))
+
+        #expect(harness.session.unreadNotificationsByURL[makePR("A").url]?.count == 2)
+    }
+
     @Test func failureOnANewCommitPostsEvenWithoutSeeingPending() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [makePR("A", checkState: .failure, headCommit: "c1")]))
