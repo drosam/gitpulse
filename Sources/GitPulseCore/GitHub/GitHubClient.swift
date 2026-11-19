@@ -132,9 +132,9 @@ struct GitHubClient: Sendable {
         fragment prFields on PullRequest {
           ...prSummary
           comments(last: 10) { nodes { author { login } createdAt } }
-          reviews(last: 30) { nodes { author { login } state submittedAt } }
+          reviews(last: 30) { nodes { id author { login } state submittedAt } }
           latestOpinionatedReviews(first: 100) { nodes { author { login } state submittedAt } }
-          reviewThreads(last: 10) { nodes { comments(last: 10) { nodes { author { login } createdAt } } } }
+          reviewThreads(last: 10) { nodes { comments(last: 10) { nodes { author { login } createdAt pullRequestReview { id } } } } }
         }
         """
 
@@ -317,11 +317,17 @@ private struct PRNode: Decodable {
     }
     struct CommentConnection: Decodable {
         var nodes: [Node?]
-        struct Node: Decodable { var author: Author?; var createdAt: Date? }
+        struct Node: Decodable {
+            var author: Author?
+            var createdAt: Date?
+            /// Set on review-thread comments: the review that posted them.
+            var pullRequestReview: Ref?
+        }
+        struct Ref: Decodable { var id: String }
     }
     struct ReviewConnection: Decodable {
         var nodes: [Node?]
-        struct Node: Decodable { var author: Author?; var state: String?; var submittedAt: Date? }
+        struct Node: Decodable { var id: String?; var author: Author?; var state: String?; var submittedAt: Date? }
     }
     struct ReviewThreadConnection: Decodable {
         var nodes: [Node?]
@@ -354,9 +360,12 @@ private struct PRNode: Decodable {
             guard let node, let login = node.author?.login, let at = node.submittedAt else { continue }
             events.append(.init(kind: .review(state: node.state ?? ""), author: login, createdAt: at))
         }
+        // Every inline comment belongs to a review; when that review is listed, it stands for its comments.
+        let reviewIDs = Set((reviews?.nodes ?? []).compactMap { $0?.id })
         for thread in reviewThreads?.nodes ?? [] {
             for comment in thread?.comments?.nodes ?? [] {
                 guard let comment, let login = comment.author?.login, let at = comment.createdAt else { continue }
+                if let review = comment.pullRequestReview?.id, reviewIDs.contains(review) { continue }
                 events.append(.init(kind: .comment, author: login, createdAt: at))
             }
         }

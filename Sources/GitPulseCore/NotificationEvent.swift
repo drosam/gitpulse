@@ -48,7 +48,8 @@ enum NotificationEvent: Equatable, Sendable {
         case .checksFinished(let state): state == .success ? .checksPassed : .checksFailed
         case .activity(let event):
             switch event.kind {
-            case .comment: .commented
+            // A comment-only review is how GitHub posts inline comments and thread replies.
+            case .comment, .review(state: "COMMENTED"): .commented
             case .review(state: "APPROVED"): .approved
             case .review(state: "CHANGES_REQUESTED"): .changesRequested
             case .review(state: "DISMISSED"): .reviewDismissed

@@ -55,6 +55,52 @@ struct DashboardDecodingTests {
         ])
     }
 
+    /// PR_A from the fixture with the given reviews and review-thread comments.
+    private func prA(reviews: [[String: Any]], threadComments: [[String: Any]]) throws -> PullRequest {
+        var envelope = try #require(try JSONSerialization.jsonObject(with: fixture("dashboard")) as? [String: Any])
+        var data = try #require(envelope["data"] as? [String: Any])
+        var mine = try #require(data["mine"] as? [String: Any])
+        var nodes = try #require(mine["nodes"] as? [Any])
+        var node = try #require(nodes.first as? [String: Any])
+        node["comments"] = ["nodes": []]
+        node["reviews"] = ["nodes": reviews]
+        node["reviewThreads"] = ["nodes": [["comments": ["nodes": threadComments]]]]
+        nodes[0] = node
+        mine["nodes"] = nodes
+        data["mine"] = mine
+        envelope["data"] = data
+        let dashboard = try GitHubClient.decodeDashboard(JSONSerialization.data(withJSONObject: envelope))
+        return try #require(dashboard.myPRs.first { $0.id == node["id"] as? String })
+    }
+
+    @Test func reviewWithInlineCommentsIsOneEvent() throws {
+        let pr = try prA(
+            reviews: [["id": "R1", "author": ["login": "monalisa"], "state": "APPROVED", "submittedAt": "2026-01-12T09:00:00Z"]],
+            threadComments: [
+                ["author": ["login": "monalisa"], "createdAt": "2026-01-12T08:50:00Z", "pullRequestReview": ["id": "R1"]],
+                ["author": ["login": "monalisa"], "createdAt": "2026-01-12T08:55:00Z", "pullRequestReview": ["id": "R1"]],
+            ]
+        )
+        #expect(pr.activity == [.init(kind: .review(state: "APPROVED"), author: "monalisa", createdAt: date("2026-01-12T09:00:00Z"))])
+    }
+
+    @Test func threadReplyIsOneCommentEvent() throws {
+        let pr = try prA(
+            reviews: [["id": "R2", "author": ["login": "hubot"], "state": "COMMENTED", "submittedAt": "2026-01-13T10:00:00Z"]],
+            threadComments: [["author": ["login": "hubot"], "createdAt": "2026-01-13T10:00:00Z", "pullRequestReview": ["id": "R2"]]]
+        )
+        #expect(pr.activity.count == 1)
+        #expect(pr.activity.first.map { NotificationEvent.activity($0).subtitle } == "@hubot commented")
+    }
+
+    @Test func commentWhoseReviewIsNotFetchedStillCounts() throws {
+        let pr = try prA(
+            reviews: [],
+            threadComments: [["author": ["login": "hubot"], "createdAt": "2026-01-13T10:00:00Z", "pullRequestReview": ["id": "R_OLD"]]]
+        )
+        #expect(pr.activity == [.init(kind: .comment, author: "hubot", createdAt: date("2026-01-13T10:00:00Z"))])
+    }
+
     @Test func reviewRequestsApplyPaneRules() throws {
         // PR_C: requested + commented (deduped). PR_E: viewer's latest review is CHANGES_REQUESTED.
         // PR_D: approved, then a comment-only review. PR_F: approval only in latestOpinionatedReviews.
