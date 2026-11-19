@@ -246,6 +246,9 @@ public final class Session {
         unreadURLs.subtracting(hiddenPRURLs)
     }
 
+    /// A Keychain save or delete that failed; kept until the next sign-in or sign-out.
+    private(set) var keychainError: String?
+
     /// Where the signed-in token came from; nil while signed out.
     private(set) var tokenSource: TokenSource?
     /// A token GitPulse can't delete (environment or gh CLI), offered on the sign-in screen after sign-out.
@@ -291,6 +294,7 @@ public final class Session {
 
     /// Signs in again with the environment or gh CLI token after an explicit sign-out.
     func useExternalToken() async {
+        keychainError = nil
         defaults.removeObject(forKey: Self.signedOutKey)
         await start()
     }
@@ -328,7 +332,9 @@ public final class Session {
             let newToken = try await dependencies.deviceFlow.pollForToken(authorization)
             guard generation == signInGeneration else { return }
             signInTask = nil
-            dependencies.tokens.save(newToken)
+            keychainError = dependencies.tokens.save(newToken)
+                ? nil
+                : "Couldn't save your sign-in to the Keychain, so you'll need to sign in again next time GitPulse opens."
             defaults.removeObject(forKey: Self.signedOutKey)
             token = newToken
             tokenSource = .keychain
@@ -355,7 +361,9 @@ public final class Session {
             defaults.removeObject(forKey: key(base))
         }
         updateDockBadge()
-        dependencies.tokens.clear()
+        keychainError = dependencies.tokens.clear()
+            ? nil
+            : "Couldn't remove your token from the Keychain. Delete \"dev.davidrosa.gitpulse.github-token\" in Keychain Access."
         defaults.set(true, forKey: Self.signedOutKey)
         token = nil
         tokenSource = nil
@@ -453,7 +461,7 @@ public final class Session {
             refreshGeneration += 1
             autoRefreshTask?.cancel()
             autoRefreshTask = nil
-            dependencies.tokens.clear()
+            _ = dependencies.tokens.clear()
             token = nil
             tokenSource = nil
             Task { await updateExternalTokenSource() }

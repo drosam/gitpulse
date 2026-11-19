@@ -55,8 +55,8 @@ struct SessionSignInTests {
     /// A `gh` CLI token survives `clear()`, like the real provider.
     private let cliTokens = TokenProvider(
         resolve: { ResolvedToken(token: "cli-token", source: .githubCLI) },
-        save: { _ in },
-        clear: {}
+        save: { _ in true },
+        clear: { true }
     )
 
     @Test func startReportsTokenSource() async {
@@ -94,7 +94,7 @@ struct SessionSignInTests {
     }
 
     private func noToken() -> TokenProvider {
-        TokenProvider(resolve: { nil }, save: { _ in }, clear: {})
+        TokenProvider(resolve: { nil }, save: { _ in true }, clear: { true })
     }
 
     @Test func supersededSignInExpiringLaterKeepsTheDashboard() async {
@@ -113,6 +113,48 @@ struct SessionSignInTests {
         await first.value
 
         #expect(harness.dashboard?.viewer == "octocat")
+    }
+
+    @Test func failedKeychainSaveWarnsButKeepsTheSession() async {
+        let script = SignInScript()
+        let tokens = TokenProvider(resolve: { nil }, save: { _ in false }, clear: { true })
+        let harness = SessionHarness(tokens: tokens, deviceFlow: script.flow)
+        await harness.source.enqueue(makeDashboard())
+        await harness.source.enqueue(makeDashboard())
+        let first = Task { await harness.session.signIn() }
+        await waitForCode("CODE-1", in: harness.session)
+
+        await harness.session.signIn()
+        await harness.session.refresh()
+
+        #expect(harness.dashboard?.viewer == "octocat")
+        #expect(harness.session.keychainError != nil)
+        await script.firstPoll.open()
+        await first.value
+    }
+
+    @Test func failedKeychainDeleteOnSignOutWarns() async {
+        let tokens = TokenProvider(
+            resolve: { ResolvedToken(token: "saved", source: .keychain) },
+            save: { _ in true },
+            clear: { false }
+        )
+        let harness = SessionHarness(tokens: tokens)
+        await harness.load(makeDashboard())
+
+        harness.session.signOut()
+
+        if case .signedOut = harness.session.state {} else { Issue.record("Expected signed-out state") }
+        #expect(harness.session.keychainError != nil)
+    }
+
+    @Test func successfulSignOutHasNoKeychainWarning() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard())
+
+        harness.session.signOut()
+
+        #expect(harness.session.keychainError == nil)
     }
 
     @Test func cancelledSignInReturnsToSignInScreen() async {
@@ -138,8 +180,8 @@ struct SessionSignInTests {
                 if !waitBriefly(for: release) { timedOut.withLock { $0 = true } }
                 return ResolvedToken(token: "slow-token", source: .githubCLI)
             },
-            save: { _ in },
-            clear: {}
+            save: { _ in true },
+            clear: { true }
         )
         let harness = SessionHarness(tokens: tokens)
         await harness.source.enqueue(makeDashboard())
@@ -160,8 +202,8 @@ struct SessionSignInTests {
                 lookups.withLock { $0 += 1 }
                 return ResolvedToken(token: "cli-token", source: .githubCLI)
             },
-            save: { _ in },
-            clear: {}
+            save: { _ in true },
+            clear: { true }
         )
         let harness = SessionHarness(tokens: tokens)
         await harness.load(makeDashboard())

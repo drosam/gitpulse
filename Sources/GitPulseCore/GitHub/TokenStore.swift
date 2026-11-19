@@ -23,7 +23,7 @@ enum TokenStore {
 
     // MARK: - Keychain
 
-    static func save(_ token: String) {
+    static func save(_ token: String) -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -33,16 +33,17 @@ enum TokenStore {
 
         var attributes = query
         attributes[kSecValueData as String] = Data(token.utf8)
-        SecItemAdd(attributes as CFDictionary, nil)
+        return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
     }
 
-    static func clear() {
+    static func clear() -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
-        SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query as CFDictionary)
+        return status == errSecSuccess || status == errSecItemNotFound
     }
 
     private static func readKeychain() -> String? {

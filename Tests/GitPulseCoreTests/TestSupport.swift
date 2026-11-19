@@ -173,7 +173,7 @@ struct SessionHarness {
     init(
         defaults: UserDefaults = makeDefaults(),
         dashboards: [Dashboard] = [],
-        tokens: TokenProvider = TokenProvider(resolve: { ResolvedToken(token: "test-token", source: .keychain) }, save: { _ in }, clear: {}),
+        tokens: TokenProvider = TokenProvider(resolve: { ResolvedToken(token: "test-token", source: .keychain) }, save: { _ in true }, clear: { true }),
         deviceFlow: DeviceFlow = DeviceFlow(transport: { _ in throw URLError(.notConnectedToInternet) })
     ) {
         self.defaults = defaults

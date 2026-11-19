@@ -38,8 +38,10 @@ struct ResolvedToken: Sendable {
 struct TokenProvider: Sendable {
     /// Runs off the main actor: it may read the Keychain or run `gh`.
     var resolve: @Sendable () async -> ResolvedToken?
-    var save: @Sendable (String) -> Void
-    var clear: @Sendable () -> Void
+    /// False when the Keychain rejected the write.
+    var save: @Sendable (String) -> Bool
+    /// False when the Keychain item couldn't be deleted; a missing item counts as cleared.
+    var clear: @Sendable () -> Bool
 
     static let keychain = TokenProvider(
         resolve: { TokenStore.resolve() },

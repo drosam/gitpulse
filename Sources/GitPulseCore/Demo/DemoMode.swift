@@ -22,7 +22,7 @@ public enum DemoMode {
             dependencies: Session.Dependencies(
                 notifier: SilentNotifier(),
                 dashboardSource: DemoDashboardSource(dashboard: DemoData.dashboard(now: now)),
-                tokens: TokenProvider(resolve: { ResolvedToken(token: "demo", source: .keychain) }, save: { _ in }, clear: {}),
+                tokens: TokenProvider(resolve: { ResolvedToken(token: "demo", source: .keychain) }, save: { _ in true }, clear: { true }),
                 deviceFlow: DeviceFlow(),
                 setDockBadge: { _ in }
             )

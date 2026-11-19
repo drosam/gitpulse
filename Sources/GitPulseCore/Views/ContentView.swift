@@ -48,8 +48,11 @@ struct DashboardView: View {
                     NotificationPermissionBanner()
                     Divider()
                 }
+                if let keychainError = session.keychainError {
+                    WarningBanner(message: keychainError)
+                }
                 if let refreshError = session.refreshError {
-                    RefreshErrorBanner(message: refreshError)
+                    WarningBanner(message: "Couldn't refresh: \(refreshError)")
                     Divider()
                 }
                 paneSplit
@@ -311,14 +314,14 @@ struct NotificationPermissionBanner: View {
 }
 
 /// A failed refresh shown above the last good dashboard instead of replacing it.
-struct RefreshErrorBanner: View {
+struct WarningBanner: View {
     var message: String
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-            Text("Couldn't refresh: \(message)")
+            Text(message)
                 .font(.system(size: 12))
                 .lineLimit(2)
             Spacer()
@@ -343,6 +346,10 @@ struct SignInView: View {
                 .foregroundStyle(.secondary)
             if let refreshError = session.refreshError {
                 Label(refreshError, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            }
+            if let keychainError = session.keychainError {
+                Label(keychainError, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
             }
             Button("Sign in with GitHub") {
