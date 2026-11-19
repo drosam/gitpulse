@@ -70,7 +70,8 @@ enum TokenStore {
         guard let gh = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             return nil
         }
-        return commandOutput(gh, ["auth", "token"], timeout: 5)
+        // Pin the host: gh's default may be GitHub Enterprise, whose token must not reach api.github.com.
+        return commandOutput(gh, ["auth", "token", "--hostname", "github.com"], timeout: 5)
     }
 
     /// Trimmed stdout of a successful command, or nil on failure, empty output, or timeout (the process is killed).
