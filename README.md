@@ -112,6 +112,8 @@ This builds a release binary for your Mac, generates the icon, and installs an a
 
 **"GitPulse can't be opened" / "is damaged".** The app is unsigned. Install with Homebrew, click **Open Anyway** in **System Settings → Privacy & Security** after the first attempt, or run `xattr -dr com.apple.quarantine /Applications/GitPulse.app`.
 
+**macOS asks to let GitPulse use the Keychain after an update.** GitPulse is ad-hoc signed, so each version looks like a new app to the Keychain. Click **Always Allow** (enter your login password) once per update. To avoid the prompt, sign in with `GITHUB_TOKEN` or the GitHub CLI instead.
+
 **No notification banners.** Allow GitPulse in System Settings → Notifications. GitPulse shows a banner in its window when permission is denied.
 
 ## Authentication
