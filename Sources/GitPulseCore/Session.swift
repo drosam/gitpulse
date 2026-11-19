@@ -93,6 +93,8 @@ public final class Session {
     private var rateLimitedUntil: Date?
     /// Last seen head-commit check state per PR, to detect CI finishing.
     private var lastCheckState: [PullRequest.ID: PullRequest.CheckState] = [:]
+    /// Head commit at the time of `lastCheckState`.
+    private var lastCheckCommit: [PullRequest.ID: String] = [:]
     /// PRs on the dashboard in the previous pass, with or without checks; only these banner check results.
     private var checkedPullRequestIDs: Set<PullRequest.ID> = []
     private var hasSeededChecks = false
@@ -229,6 +231,7 @@ public final class Session {
         rateLimitedUntil = nil
         lastActivityAt = [:]
         lastCheckState = [:]
+        lastCheckCommit = [:]
         checkedPullRequestIDs = []
         knownReviewRequestIDs = []
         hasSeededReviewRequests = false
@@ -566,9 +569,13 @@ public final class Session {
         for pr in prs {
             guard let state = pr.checkState else { continue }
             let previous = lastCheckState[pr.id]
+            let previousCommit = lastCheckCommit[pr.id]
             lastCheckState[pr.id] = state
+            lastCheckCommit[pr.id] = pr.headCommit
             let finished = state == .success || state == .failure || state == .error
-            guard hasSeededChecks, previouslyShown.contains(pr.id), finished, state != previous else { continue }
+            // A new head commit counts as a new run even if its pending phase fell between refreshes.
+            let newCommit = pr.headCommit != nil && previousCommit != nil && pr.headCommit != previousCommit
+            guard hasSeededChecks, previouslyShown.contains(pr.id), finished, state != previous || newCommit else { continue }
             announce(.checksFinished(state), for: pr)
         }
         hasSeededChecks = true
@@ -647,6 +654,7 @@ public final class Session {
         let currentIDs = Set(prs.map(\.id))
         let currentURLs = Set(prs.map(\.url))
         lastCheckState = lastCheckState.filter { currentIDs.contains($0.key) }
+        lastCheckCommit = lastCheckCommit.filter { currentIDs.contains($0.key) }
         lastActivityAt = lastActivityAt.filter { currentIDs.contains($0.key) }
         unreadURLs = unreadURLs.filter { currentURLs.contains($0) }
         unreadNotifications = unreadNotifications.filter { key, _ in

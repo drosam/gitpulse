@@ -171,6 +171,13 @@ struct DashboardDecodingTests {
         return try JSONSerialization.data(withJSONObject: envelope)
     }
 
+    @Test func decodesHeadCommit() throws {
+        let json = try #require(String(data: fixture("dashboard"), encoding: .utf8))
+            .replacingOccurrences(of: #""statusCheckRollup": { "state": "SUCCESS" }"#, with: #""oid": "abc123", "statusCheckRollup": { "state": "SUCCESS" }"#)
+        let pr = try #require(try GitHubClient.decodeDashboard(Data(json.utf8)).myPRs.first { $0.id == "PR_A" })
+        #expect(pr.headCommit == "abc123")
+    }
+
     @Test func unknownGitHubEnumValuesDecodeAsNil() throws {
         let json = try #require(String(data: fixture("dashboard"), encoding: .utf8))
             .replacingOccurrences(of: #""reviewDecision": "APPROVED""#, with: #""reviewDecision": "SOMETHING_NEW""#)

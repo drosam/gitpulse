@@ -127,7 +127,7 @@ struct GitHubClient: Sendable {
           author { login }
           mergeQueueEntry { state }
           labels(first: 10) { nodes { name color } }
-          commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+          commits(last: 1) { nodes { commit { oid statusCheckRollup { state } } } }
         }
         fragment prFields on PullRequest {
           ...prSummary
@@ -312,7 +312,7 @@ private struct PRNode: Decodable {
     struct CommitConnection: Decodable {
         var nodes: [Node?]
         struct Node: Decodable { var commit: Commit }
-        struct Commit: Decodable { var statusCheckRollup: Rollup? }
+        struct Commit: Decodable { var oid: String?; var statusCheckRollup: Rollup? }
         struct Rollup: Decodable { var state: String? }
     }
     struct CommentConnection: Decodable {
@@ -397,7 +397,8 @@ private struct PRNode: Decodable {
             deletions: deletions ?? 0,
             createdAt: createdAt ?? updatedAt,
             updatedAt: updatedAt,
-            mergedAt: mergedAt
+            mergedAt: mergedAt,
+            headCommit: commits?.nodes.first??.commit.oid
         )
     }
 }

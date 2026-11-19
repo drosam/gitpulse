@@ -49,6 +49,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - Repository entries with an empty path part, like `acme//web` or `acme/web/`, are flagged as invalid instead of being searched.
 - When a pane's GitHub search matches more than 50 pull requests, GitPulse keeps the 50 most recently updated ones instead of an arbitrary subset, and shows `+` after the pane count.
 - A review with inline comments now posts one notification instead of one per comment plus one for the review, and a comment-only review or thread reply reads "commented".
+- CI results on a new commit are announced even when the checks finished between two refreshes, so a second failure in a row is no longer missed.
 - Overlapping refreshes no longer apply an older response over a newer one, and a refresh finishing after sign-out no longer brings the dashboard back.
 - A pull request's icon no longer turns into a magenta square after it enters the merge queue or merges while GitPulse is open.
 

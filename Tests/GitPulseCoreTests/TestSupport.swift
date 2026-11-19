@@ -55,6 +55,7 @@ func makePR(
     author: String = "octocat",
     isMerged: Bool = false,
     checkState: PullRequest.CheckState? = nil,
+    headCommit: String? = nil,
     isInMergeQueue: Bool = false,
     mergeQueueState: String? = nil,
     activity: [PullRequest.ActivityEvent] = [],
@@ -83,7 +84,8 @@ func makePR(
         deletions: 1,
         createdAt: date(createdAt),
         updatedAt: date(updatedAt),
-        mergedAt: mergedAt
+        mergedAt: mergedAt,
+        headCommit: headCommit
     )
 }
 

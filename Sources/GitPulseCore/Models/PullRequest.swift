@@ -61,6 +61,8 @@ struct PullRequest: Identifiable, Hashable, Codable, Sendable {
     var updatedAt: Date
     /// Nil for open PRs and for merged rows persisted before this field existed.
     var mergedAt: Date? = nil
+    /// Head commit SHA; nil for rows persisted before this field existed.
+    var headCommit: String? = nil
 }
 
 extension String {

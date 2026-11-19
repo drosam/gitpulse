@@ -129,6 +129,17 @@ struct SessionNotificationTests {
         #expect(harness.notifier.posts == [.check("A", passed: false)])
     }
 
+    @Test func failureOnANewCommitPostsEvenWithoutSeeingPending() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [makePR("A", checkState: .failure, headCommit: "c1")]))
+        await harness.load(makeDashboard(mine: [makePR("A", checkState: .failure, headCommit: "c1")]))
+        #expect(harness.notifier.posts == [])
+
+        await harness.load(makeDashboard(mine: [makePR("A", checkState: .failure, headCommit: "c2")]))
+
+        #expect(harness.notifier.posts == [.check("A", passed: false)])
+    }
+
     @Test func pullRequestEnteringWithFinishedChecksDoesNotPostCheckResult() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [makePR("A", checkState: .pending)]))
