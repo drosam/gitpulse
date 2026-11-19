@@ -85,7 +85,7 @@ Never call real GitHub from tests. Inject a `DashboardSource`, `TokenProvider`, 
    - **publish** (Ubuntu, `release` environment): runs only after you approve the deployment in GitHub Actions. It attests build provenance, creates the GitHub release with the CHANGELOG section as notes, and bumps `Casks/gitpulse.rb` in `drosam/homebrew-tap`.
 4. Update locally: `brew update && brew upgrade --cask gitpulse`.
 
-Tags `vX.Y.Z-(alpha|beta|rc)[.N]` are published as prereleases and don't touch the cask. Re-run a failed release from the Actions tab; every step is idempotent.
+Tags `vX.Y.Z-(alpha|beta|rc)[.N]` are published as prereleases and don't touch the cask. Re-run a failed release with **Re-run failed jobs** in the Actions tab within 7 days; it reuses the built artifact. A full rebuild of a tag whose release already exists stops before the cask bump if its checksums differ from the published `SHA256SUMS.txt`, and a draft release blocks publishing until you publish or delete it. Re-running an older tag never lowers the cask version.
 
 ### One-time release setup
 

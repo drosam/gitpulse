@@ -138,8 +138,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::notice::Release $TAG already exists; skipping creation"
+          if is_draft="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            # A rebuild produces different checksums; never point the cask at assets this run didn't publish.
+            if [ "$is_draft" != false ]; then
+              echo "::error::Release $TAG exists as a draft; publish or delete it, then re-run"
+              exit 1
+            fi
+            published="$(mktemp -d)"
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS.txt --dir "$published"
+            if ! cmp -s "$published/SHA256SUMS.txt" out/dist/SHA256SUMS.txt; then
+              echo "::error::Release $TAG already has different assets than this build. Use 'Re-run failed jobs' within 7 days, or bump the cask by hand from the published SHA256SUMS.txt"
+              exit 1
+            fi
+            echo "::notice::Release $TAG already exists with the same assets; skipping creation"
             exit 0
           fi
           flags=()
@@ -179,6 +190,12 @@ jobs:
         run: |
           set -euo pipefail
           cask=Casks/gitpulse.rb
+          current=$(sed -n -E 's/^  version "(.*)"$/\1/p' "$cask")
+          if [ -n "$current" ] && [ "$current" != "$VERSION" ] \
+            && [ "$(printf '%s\n%s\n' "$current" "$VERSION" | sort -V | tail -n1)" = "$current" ]; then
+            echo "::notice::Cask is already at newer $current; not lowering it to $VERSION"
+            exit 0
+          fi
           sha=$(awk -v f="GitPulse-$VERSION.zip" '$2 == f { print $1 }' ../out/dist/SHA256SUMS.txt)
           if [[ ! "$sha" =~ ^[0-9a-f]{64}$ ]]; then
             echo "::error::Could not read zip SHA256 from SHA256SUMS.txt"
