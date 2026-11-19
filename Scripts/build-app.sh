@@ -47,6 +47,7 @@ plutil -replace CFBundleShortVersionString -string "$VERSION" "$app/Contents/Inf
 plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$app/Contents/Info.plist"
 cp "${bin_dir}/${APP_NAME}" "$app/Contents/MacOS/${APP_NAME}"
 cp "$icns" "$app/Contents/Resources/AppIcon.icns"
-codesign --force --sign - "$app"
+# Hardened runtime blocks injected libraries from inheriting the app's Keychain access.
+codesign --force --options runtime --sign - "$app"
 
 echo "Built ${app} (version ${VERSION}, build ${BUILD_NUMBER})"
