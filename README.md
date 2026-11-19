@@ -13,7 +13,7 @@ Native Swift and SwiftUI, no Electron, no servers, no telemetry. GitPulse talks 
 
 ## Install
 
-> **Unsigned build.** GitPulse is not notarized by Apple. The Homebrew cask removes the quarantine flag for you. With the DMG or ZIP, right-click **GitPulse.app** and choose **Open** the first time.
+> **Unsigned build.** GitPulse is not notarized by Apple. The Homebrew cask removes the quarantine flag for you. With the DMG or ZIP, open GitPulse once, then click **Open Anyway** in **System Settings → Privacy & Security**, or run `xattr -dr com.apple.quarantine /Applications/GitPulse.app`.
 
 Requires macOS 15 (Sequoia) or later. Releases are universal (Apple silicon and Intel).
 
@@ -36,7 +36,7 @@ Upgrade with `brew upgrade --cask gitpulse`.
 
    The attestation proves the file was built by this repository's release workflow.
 2. Drag **GitPulse.app** to `/Applications`.
-3. First launch only: right-click **GitPulse.app** → **Open**, or run:
+3. First launch only: open GitPulse, dismiss the warning, then click **Open Anyway** in **System Settings → Privacy & Security** (right-click → **Open** no longer works on macOS 15). Or run:
 
    ```sh
    xattr -dr com.apple.quarantine /Applications/GitPulse.app
@@ -108,7 +108,7 @@ This builds a release binary for your Mac, generates the icon, and installs an a
 
 **`Refusing to load cask drosam/tap/gitpulse from untrusted tap`.** Homebrew 6 only loads third-party taps you trust. Run `brew trust drosam/tap`, then retry.
 
-**"GitPulse can't be opened" / "is damaged".** The app is unsigned. Install with Homebrew, or run `xattr -dr com.apple.quarantine /Applications/GitPulse.app`.
+**"GitPulse can't be opened" / "is damaged".** The app is unsigned. Install with Homebrew, click **Open Anyway** in **System Settings → Privacy & Security** after the first attempt, or run `xattr -dr com.apple.quarantine /Applications/GitPulse.app`.
 
 **No notification banners.** Allow GitPulse in System Settings → Notifications. GitPulse shows a banner in its window when permission is denied.
 

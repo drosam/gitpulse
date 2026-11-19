@@ -56,7 +56,7 @@ jobs:
 
           ---
 
-          > **Unsigned build.** GitPulse is not notarized. The Homebrew cask removes the quarantine flag automatically. For the DMG/ZIP, right-click GitPulse.app and choose **Open** the first time, or run `xattr -dr com.apple.quarantine /Applications/GitPulse.app`.
+          > **Unsigned build.** GitPulse is not notarized. The Homebrew cask removes the quarantine flag automatically. For the DMG/ZIP, open GitPulse once, then click **Open Anyway** in **System Settings → Privacy & Security**, or run `xattr -dr com.apple.quarantine /Applications/GitPulse.app`.
 
           Verify downloads with `SHA256SUMS.txt` and `gh attestation verify <file> --repo drosam/gitpulse`.
           EOF
