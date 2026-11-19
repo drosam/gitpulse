@@ -37,7 +37,7 @@ GitPulse is a native macOS SwiftUI menu bar app that tracks GitHub pull requests
 - Persisted session state is per GitHub login under `accounts.<login>.<key>` (`Session.accountStateKeys`); unscoped v0.1.0 keys move to the first login fetched.
 - GitHub GraphQL fetching lives in `Sources/GitPulseCore/GitHub/GitHubClient.swift`; `GitHubClient.decodeDashboard` is the pure decoding + pane-rules step.
 - Main dashboard UI lives in `Sources/GitPulseCore/Views/ContentView.swift` and `Sources/GitPulseCore/Views/PRListView.swift`; the menu bar menu (with version) is `Views/MenuBarMenu.swift`.
-- Open URLs only after `SafeURL.isAllowed` (https + github.com).
+- Open URLs only after `SafeURL.isAllowed` (https + github.com); `DeviceFlow.requestCode` rejects other verification URLs. Only exception: the constant System Settings notifications URL in `ContentView.swift`.
 - Demo mode (`Sources/GitPulseCore/Demo/`) uses fictional data and a separate defaults suite; keep it free of real repository names.
 - Version shown in the menu comes from `CFBundleShortVersionString`; release CI stamps it from the git tag, local builds show `dev (<sha>)`.
 - Releases: add a `CHANGELOG.md` section, push tag `vX.Y.Z`; `.github/workflows/release.yml` builds on macOS, then a `release`-environment-gated job attests, publishes, and bumps the cask in `drosam/homebrew-tap` via the tap GitHub App token.

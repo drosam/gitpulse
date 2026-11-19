@@ -49,11 +49,15 @@ struct DeviceFlow: Sendable {
 
     /// Step 1: request a user code to display.
     func requestCode() async throws -> Authorization {
-        try await post(
+        let authorization = try await post(
             url: URL(string: "https://github.com/login/device/code")!,
             body: ["client_id": Self.clientID, "scope": Self.scopes],
             as: Authorization.self
         )
+        guard SafeURL.isAllowed(authorization.verificationUri) else {
+            throw FlowError.unexpected("unexpected verification URL")
+        }
+        return authorization
     }
 
     /// Step 2: poll until the user approves in the browser. Returns the access token.

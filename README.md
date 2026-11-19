@@ -134,7 +134,7 @@ The token needs the `repo` scope (covers private-repo search) and `read:org` (le
 - GitPulse sends requests only to `api.github.com` (GraphQL) and `github.com` (device-flow sign-in).
 - No analytics, telemetry, or third-party services.
 - Notification state and settings live in `~/Library/Preferences/dev.davidrosa.gitpulse.plist`.
-- Links are opened only when they point to `https://github.com`.
+- Links are opened only when they point to `https://github.com`, including the sign-in page GitHub sends during device flow. The one exception is the fixed link to macOS **System Settings → Notifications**.
 
 See [SECURITY.md](SECURITY.md) to report a vulnerability.
 

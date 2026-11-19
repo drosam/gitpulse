@@ -52,6 +52,13 @@ struct DeviceFlowTests {
         #expect(auth.verificationUri == URL(string: "https://github.com/login/device"))
     }
 
+    @Test func requestCodeRejectsNonGitHubVerificationURL() async {
+        let script = FlowScript([(200, #"{"device_code":"dc","user_code":"WXYZ-0000","verification_uri":"https://evil.example/","interval":5,"expires_in":900}"#)])
+        await #expect(throws: DeviceFlow.FlowError.unexpected("unexpected verification URL")) {
+            try await script.flow.requestCode()
+        }
+    }
+
     @Test func pollsUntilTokenArrives() async throws {
         let script = FlowScript([
             (200, #"{"error":"authorization_pending"}"#),
