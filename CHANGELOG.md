@@ -46,6 +46,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - Sign-in refuses a device-flow verification link that doesn't point to `https://github.com`, like every other link GitPulse opens.
 - Unread summaries pick their icon from the event type, so a comment by someone like `@merged-bot` no longer shows the merge icon.
 - The GitHub CLI token is read for `github.com` only, so a GitHub Enterprise token from `gh` is never sent to `api.github.com`.
+- Repository entries with an empty path part, like `acme//web` or `acme/web/`, are flagged as invalid instead of being searched.
 - Overlapping refreshes no longer apply an older response over a newer one, and a refresh finishing after sign-out no longer brings the dashboard back.
 - A pull request's icon no longer turns into a magenta square after it enters the merge queue or merges while GitPulse is open.
 

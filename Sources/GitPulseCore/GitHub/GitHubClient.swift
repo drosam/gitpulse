@@ -49,44 +49,64 @@ struct GitHubClient: Sendable {
 
     private static let endpoint = URL(string: "https://api.github.com/graphql")!
 
-    private var dashboardQuery: String {
+    /// Request body: the fixed query plus its variables, so no user or stored value is spliced into GraphQL text.
+    private struct Body: Encodable {
+        var query: String
+        var variables: Variables
+    }
+
+    private struct Variables: Encodable {
+        var mine, assigned, reviews, reviewed, commented, mergedAuthored, mergedAssigned: String
+        var tracked: [String]
+    }
+
+    private var variables: Variables {
         let repoFilter = repositories
             .map { "repo:\($0)" }
             .joined(separator: " ")
         let scoped: (String) -> String = { query in
             repoFilter.isEmpty ? query : "\(query) \(repoFilter)"
         }
+        return Variables(
+            mine: scoped("is:pr is:open author:@me archived:false"),
+            assigned: scoped("is:pr is:open assignee:@me archived:false"),
+            reviews: scoped("is:pr is:open review-requested:@me archived:false"),
+            reviewed: scoped("is:pr is:open reviewed-by:@me archived:false"),
+            commented: scoped("is:pr is:open commenter:@me archived:false"),
+            mergedAuthored: scoped("is:pr is:merged author:@me archived:false sort:updated-desc"),
+            mergedAssigned: scoped("is:pr is:merged assignee:@me archived:false sort:updated-desc"),
+            tracked: Array(trackedPullRequestIDs.prefix(100))
+        )
+    }
 
-        let trackedIDs = trackedPullRequestIDs
-            .prefix(100)
-            .map { "\"\($0)\"" }
-            .joined(separator: ", ")
-
-        return """
-        query Dashboard {
+    private static let dashboardQuery = """
+        query Dashboard(
+          $mine: String!, $assigned: String!, $reviews: String!, $reviewed: String!, $commented: String!,
+          $mergedAuthored: String!, $mergedAssigned: String!, $tracked: [ID!]!
+        ) {
           viewer { login }
-          mine: search(query: "\(scoped("is:pr is:open author:@me archived:false"))", type: ISSUE, first: 50) {
+          mine: search(query: $mine, type: ISSUE, first: 50) {
             nodes { ...prFields }
           }
-          assigned: search(query: "\(scoped("is:pr is:open assignee:@me archived:false"))", type: ISSUE, first: 50) {
+          assigned: search(query: $assigned, type: ISSUE, first: 50) {
             nodes { ...prFields }
           }
-          reviews: search(query: "\(scoped("is:pr is:open review-requested:@me archived:false"))", type: ISSUE, first: 50) {
+          reviews: search(query: $reviews, type: ISSUE, first: 50) {
             nodes { ...prFields }
           }
-          reviewed: search(query: "\(scoped("is:pr is:open reviewed-by:@me archived:false"))", type: ISSUE, first: 50) {
+          reviewed: search(query: $reviewed, type: ISSUE, first: 50) {
             nodes { ...prFields }
           }
-          commented: search(query: "\(scoped("is:pr is:open commenter:@me archived:false"))", type: ISSUE, first: 50) {
+          commented: search(query: $commented, type: ISSUE, first: 50) {
             nodes { ...prFields }
           }
-          mergedAuthored: search(query: "\(scoped("is:pr is:merged author:@me archived:false sort:updated-desc"))", type: ISSUE, first: 20) {
+          mergedAuthored: search(query: $mergedAuthored, type: ISSUE, first: 20) {
             nodes { ...prSummary }
           }
-          mergedAssigned: search(query: "\(scoped("is:pr is:merged assignee:@me archived:false sort:updated-desc"))", type: ISSUE, first: 20) {
+          mergedAssigned: search(query: $mergedAssigned, type: ISSUE, first: 20) {
             nodes { ...prSummary }
           }
-          tracked: nodes(ids: [\(trackedIDs)]) {
+          tracked: nodes(ids: $tracked) {
             ... on PullRequest { ...prSummary }
           }
         }
@@ -108,14 +128,13 @@ struct GitHubClient: Sendable {
           reviewThreads(last: 10) { nodes { comments(last: 10) { nodes { author { login } createdAt } } } }
         }
         """
-    }
 
     func fetchDashboard() async throws -> Dashboard {
         var request = URLRequest(url: Self.endpoint)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(["query": dashboardQuery])
+        request.httpBody = try JSONEncoder().encode(Body(query: Self.dashboardQuery, variables: variables))
 
         let (data, response) = try await transport(request)
         let http = response as? HTTPURLResponse

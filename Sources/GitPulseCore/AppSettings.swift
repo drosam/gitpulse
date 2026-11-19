@@ -121,7 +121,7 @@ public final class AppSettings {
     private static let selectedRepositoriesKey = "settings.selectedRepositories"
 
     private static func isValidRepository(_ repository: String) -> Bool {
-        let parts = repository.split(separator: "/")
+        let parts = repository.split(separator: "/", omittingEmptySubsequences: false)
         guard parts.count == 2 else { return false }
         let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-")
         return parts.allSatisfy { part in

@@ -18,7 +18,7 @@ struct AppSettingsTests {
     }
 
     /// The validator is the only guard on names placed into the GraphQL search string.
-    @Test(arguments: [#"acme/web""#, #"acme/we\b"#, "acme/web)", "org:acme/web", "acme/web/extra", "acme/{web}"])
+    @Test(arguments: [#"acme/web""#, #"acme/we\b"#, "acme/web)", "org:acme/web", "acme/web/extra", "acme/{web}", "acme//web", "/acme/web", "acme/web/"])
     func rejectsEntriesThatCouldEscapeTheSearchQuery(_ entry: String) {
         let settings = AppSettings(defaults: makeDefaults())
         settings.selectedRepositoriesText = entry

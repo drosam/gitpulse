@@ -18,12 +18,15 @@ private final class ClientScript: Sendable {
 
     var request: URLRequest? { recorded.withLock { $0 } }
 
-    var query: String {
-        guard let body = request?.httpBody,
-              let json = try? JSONDecoder().decode([String: String].self, from: body)
-        else { return "" }
-        return json["query"] ?? ""
+    var sentJSON: [String: Any] {
+        guard let data = request?.httpBody,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return [:] }
+        return json
     }
+
+    var query: String { sentJSON["query"] as? String ?? "" }
+    var variables: [String: Any] { sentJSON["variables"] as? [String: Any] ?? [:] }
 
     func client(repositories: [String] = [], tracked: [PullRequest.ID] = []) -> GitHubClient {
         GitHubClient(token: "gho_test", repositories: repositories, trackedPullRequestIDs: tracked, transport: { request in
@@ -43,8 +46,10 @@ struct GitHubClientTests {
         #expect(!dashboard.viewer.isEmpty)
         #expect(script.request?.url == URL(string: "https://api.github.com/graphql"))
         #expect(script.request?.value(forHTTPHeaderField: "Authorization") == "Bearer gho_test")
-        #expect(script.query.contains("is:pr is:open author:@me archived:false repo:acme/web"))
-        #expect(script.query.contains(#""PR_tracked""#))
+        #expect(script.variables["mine"] as? String == "is:pr is:open author:@me archived:false repo:acme/web")
+        #expect(script.variables["tracked"] as? [String] == ["PR_tracked"])
+        #expect(!script.query.contains("acme/web"))
+        #expect(!script.query.contains("PR_tracked"))
     }
 
     @Test func nonOKStatusThrowsHTTPError() async {
