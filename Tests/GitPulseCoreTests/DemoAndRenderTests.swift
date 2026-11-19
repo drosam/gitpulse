@@ -6,7 +6,7 @@ import Testing
 @MainActor
 struct DemoModeTests {
     @Test func demoSessionLoadsFixturesWithUnreadState() async throws {
-        let (session, _) = DemoMode.makeSessionAndSettings()
+        let (session, _) = DemoMode.makeSessionAndSettings(defaults: makeDefaults())
         await session.start()
 
         guard case .ready(let dashboard) = session.state else {
@@ -40,7 +40,7 @@ struct RenderSmokeTests {
     }
 
     private func demo() async -> (Session, AppSettings, Dashboard) {
-        let (session, settings) = DemoMode.makeSessionAndSettings()
+        let (session, settings) = DemoMode.makeSessionAndSettings(defaults: makeDefaults())
         await session.start()
         guard case .ready(let dashboard) = session.state else { return (session, settings, DemoData.dashboard()) }
         return (session, settings, dashboard)

@@ -10,8 +10,9 @@ public enum DemoMode {
     static let defaultsSuite = "dev.davidrosa.gitpulse.demo"
 
     @MainActor
-    public static func makeSessionAndSettings(now: Date = Date()) -> (Session, AppSettings) {
-        let defaults = UserDefaults(suiteName: defaultsSuite)!
+    /// `defaults` lets tests keep out of the real demo preferences.
+    public static func makeSessionAndSettings(now: Date = Date(), defaults: UserDefaults? = nil) -> (Session, AppSettings) {
+        let defaults = defaults ?? UserDefaults(suiteName: defaultsSuite)!
         defaults.removePersistentDomain(forName: defaultsSuite)
         seed(defaults, now: now)
 

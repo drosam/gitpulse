@@ -2,12 +2,41 @@ import Foundation
 import Testing
 @testable import GitPulseCore
 
+/// `UserDefaults` that keeps values in memory, so tests never write a plist to
+/// `~/Library/Preferences` (cfprefsd can recreate deleted files after the run).
+final class InMemoryDefaults: UserDefaults, @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [String: Any] = [:]
+
+    init() {
+        super.init(suiteName: nil)!
+    }
+
+    override func object(forKey defaultName: String) -> Any? { lock.withLock { storage[defaultName] } }
+    override func set(_ value: Any?, forKey defaultName: String) { lock.withLock { storage[defaultName] = value } }
+    override func set(_ value: Bool, forKey defaultName: String) { set(value as Any?, forKey: defaultName) }
+    override func set(_ value: Int, forKey defaultName: String) { set(value as Any?, forKey: defaultName) }
+    override func set(_ value: Double, forKey defaultName: String) { set(value as Any?, forKey: defaultName) }
+    override func set(_ value: Float, forKey defaultName: String) { set(value as Any?, forKey: defaultName) }
+    override func set(_ url: URL?, forKey defaultName: String) { set(url as Any?, forKey: defaultName) }
+    override func removeObject(forKey defaultName: String) { lock.withLock { storage[defaultName] = nil } }
+    override func removePersistentDomain(forName domainName: String) { lock.withLock { storage = [:] } }
+    override func data(forKey defaultName: String) -> Data? { object(forKey: defaultName) as? Data }
+    override func string(forKey defaultName: String) -> String? { object(forKey: defaultName) as? String }
+    override func array(forKey defaultName: String) -> [Any]? { object(forKey: defaultName) as? [Any] }
+    override func stringArray(forKey defaultName: String) -> [String]? { object(forKey: defaultName) as? [String] }
+    override func dictionary(forKey defaultName: String) -> [String: Any]? { object(forKey: defaultName) as? [String: Any] }
+    override func bool(forKey defaultName: String) -> Bool { (object(forKey: defaultName) as? Bool) ?? false }
+    override func integer(forKey defaultName: String) -> Int { (object(forKey: defaultName) as? Int) ?? 0 }
+    override func double(forKey defaultName: String) -> Double { (object(forKey: defaultName) as? Double) ?? 0 }
+    override func float(forKey defaultName: String) -> Float { (object(forKey: defaultName) as? Float) ?? 0 }
+    override func url(forKey defaultName: String) -> URL? { object(forKey: defaultName) as? URL }
+    override func dictionaryRepresentation() -> [String: Any] { lock.withLock { storage } }
+}
+
 /// Fresh, isolated defaults per test so suites can run in parallel.
 func makeDefaults() -> UserDefaults {
-    let name = "gitpulse.tests.\(UUID().uuidString)"
-    let defaults = UserDefaults(suiteName: name)!
-    defaults.removePersistentDomain(forName: name)
-    return defaults
+    InMemoryDefaults()
 }
 
 func date(_ iso: String) -> Date {
