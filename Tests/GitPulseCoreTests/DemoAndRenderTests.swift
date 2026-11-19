@@ -21,6 +21,20 @@ struct DemoModeTests {
         #expect(session.hasUnread)
     }
 
+    @Test func demoSignInStaysOffline() async {
+        let (session, _) = DemoMode.makeSessionAndSettings(defaults: makeDefaults())
+        await session.start()
+        session.signOut()
+
+        await session.signIn()
+
+        guard case .failed(let message) = session.state else {
+            Issue.record("Expected demo sign-in to fail, got \(session.state)")
+            return
+        }
+        #expect(message.contains("demo mode"))
+    }
+
     @Test func demoDataUsesOnlyGitHubURLs() {
         let dashboard = DemoData.dashboard()
         let all = dashboard.myPRs + dashboard.reviewRequests + dashboard.recentlyMerged

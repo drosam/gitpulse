@@ -2,6 +2,11 @@ import Foundation
 
 /// Network access for GitHub requests.
 public enum HTTP {
+    /// Sends a request; injected in tests so they never reach GitHub.
+    typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+
+    static let live: Transport = { try await session.data(for: $0) }
+
     /// Keeps no cache, cookies or credentials, so the bearer token and pull request
     /// data never reach `~/Library/Caches` or `~/Library/HTTPStorages`.
     static let session: URLSession = {

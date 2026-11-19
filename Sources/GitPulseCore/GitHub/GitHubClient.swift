@@ -45,6 +45,7 @@ struct GitHubClient: Sendable {
     var token: String
     var repositories: [String] = []
     var trackedPullRequestIDs: [PullRequest.ID] = []
+    var transport: HTTP.Transport = HTTP.live
 
     private static let endpoint = URL(string: "https://api.github.com/graphql")!
 
@@ -116,7 +117,7 @@ struct GitHubClient: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(["query": dashboardQuery])
 
-        let (data, response) = try await HTTP.session.data(for: request)
+        let (data, response) = try await transport(request)
         let http = response as? HTTPURLResponse
         let resume = http.flatMap { Self.rateLimitResume(from: $0, now: Date()) }
         do {

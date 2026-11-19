@@ -6,11 +6,11 @@ import Foundation
 /// (github.com/settings/developers). The client ID is public by design;
 /// device flow needs no client secret.
 struct DeviceFlow: Sendable {
-    typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    typealias Transport = HTTP.Transport
 
     static let clientID = "Ov23liJSAbMeX2jhuqpd"
 
-    var transport: Transport = { try await HTTP.session.data(for: $0) }
+    var transport: Transport = HTTP.live
     var sleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     var now: @Sendable () -> Date = { Date() }
 

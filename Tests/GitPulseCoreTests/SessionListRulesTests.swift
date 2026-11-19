@@ -273,6 +273,22 @@ struct SessionListRulesTests {
         #expect(harness.dashboard?.viewer == "octocat")
     }
 
+    @Test func pullRequestLeavingTheDashboardDropsItsUnreadState() async {
+        let harness = SessionHarness()
+        await harness.load(makeDashboard(mine: [older]))
+        let commented = makePR("old", activity: [comment(by: "hubot", at: "2026-01-10T00:00:00Z")])
+        await harness.source.enqueue(makeDashboard(mine: [commented]))
+        await harness.session.refresh()
+        #expect(harness.badge.last == "1")
+
+        await harness.source.enqueue(makeDashboard(mine: []))
+        await harness.session.refresh()
+
+        #expect(harness.session.unreadPRURLs.isEmpty)
+        #expect(harness.session.unreadNotificationsByURL.isEmpty)
+        #expect(harness.badge.last == nil)
+    }
+
     @Test func hidingAndRestoringUnreadPullRequestUpdatesDockBadge() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [older]))

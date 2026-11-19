@@ -17,6 +17,16 @@ struct AppSettingsTests {
         #expect(settings.rejectedRepositoryEntries.isEmpty)
     }
 
+    /// The validator is the only guard on names placed into the GraphQL search string.
+    @Test(arguments: [#"acme/web""#, #"acme/we\b"#, "acme/web)", "org:acme/web", "acme/web/extra", "acme/{web}"])
+    func rejectsEntriesThatCouldEscapeTheSearchQuery(_ entry: String) {
+        let settings = AppSettings(defaults: makeDefaults())
+        settings.selectedRepositoriesText = entry
+
+        #expect(settings.selectedRepositories.isEmpty)
+        #expect(settings.rejectedRepositoryEntries == [entry])
+    }
+
     @Test func reportsRejectedEntries() {
         let settings = AppSettings(defaults: makeDefaults())
         settings.selectedRepositoriesText = "acme/web\nhttps://gitlab.com/acme/web\nnot-a-repo"

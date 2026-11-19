@@ -24,7 +24,7 @@ public enum DemoMode {
                 notifier: SilentNotifier(),
                 dashboardSource: DemoDashboardSource(dashboard: DemoData.dashboard(now: now)),
                 tokens: TokenProvider(resolve: { ResolvedToken(token: "demo", source: .keychain) }, save: { _ in true }, clear: { true }),
-                deviceFlow: DeviceFlow(),
+                deviceFlow: DeviceFlow(transport: { _ in throw SignInUnavailable() }),
                 setDockBadge: { _ in }
             )
         )
@@ -46,6 +46,11 @@ public enum DemoMode {
             defaults.set(data, forKey: key)
         }
     }
+}
+
+/// Keeps demo mode offline if someone signs out and tries to sign in.
+struct SignInUnavailable: LocalizedError {
+    var errorDescription: String? { "Sign-in isn't available in demo mode. Relaunch GitPulse without --demo." }
 }
 
 struct DemoDashboardSource: DashboardSource {

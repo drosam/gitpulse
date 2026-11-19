@@ -24,7 +24,7 @@ GitPulse is a native macOS SwiftUI menu bar app that tracks GitHub pull requests
 - Prefer small, focused changes.
 - Preserve existing SwiftUI/AppKit patterns.
 - Run `swift build` and `swift test` after code changes when feasible.
-- Tests use Swift Testing; never hit real GitHub in tests (inject `DashboardSource`, `TokenProvider`, `DeviceFlow` transport).
+- Tests use Swift Testing; never hit real GitHub in tests (inject `DashboardSource`, `TokenProvider`, or the `HTTP.Transport` of `DeviceFlow`/`GitHubClient`).
 - Do not add dependencies without explicit approval.
 - Do not commit unless asked.
 - Do not kill/relaunch/install unless asked.
