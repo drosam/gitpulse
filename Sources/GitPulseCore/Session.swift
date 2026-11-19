@@ -42,6 +42,19 @@ public final class Session {
         var kind: NotificationEvent.Kind?
 
         var resolvedKind: NotificationEvent.Kind? { kind ?? NotificationEvent.Kind(legacySubtitle: subtitle) }
+
+        /// Saved rows for `pullRequest`, or one placeholder when it was marked unread before rows were saved.
+        static func rows(for pullRequest: PullRequest, in rowsByURL: [URL: [UnreadNotification]], isUnread: Bool) -> [UnreadNotification] {
+            if let rows = rowsByURL[pullRequest.url], !rows.isEmpty { return rows }
+            guard isUnread else { return [] }
+            return [UnreadNotification(
+                id: "legacy-\(pullRequest.id)",
+                repository: pullRequest.repository,
+                subtitle: "Unread notification",
+                title: pullRequest.title,
+                createdAt: pullRequest.updatedAt
+            )]
+        }
     }
 
     enum State {

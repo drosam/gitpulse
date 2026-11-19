@@ -36,7 +36,11 @@ struct PRListView: View {
                         PRRow(
                             pullRequest: pullRequest,
                             hasNotification: unreadURLs.contains(pullRequest.url),
-                            unreadNotifications: notifications(for: pullRequest),
+                            unreadNotifications: Session.UnreadNotification.rows(
+                                for: pullRequest,
+                                in: unreadNotifications,
+                                isUnread: unreadURLs.contains(pullRequest.url)
+                            ),
                             isHidden: hiddenURLs.contains(pullRequest.url)
                         )
                         .id(pullRequest.id)
@@ -66,20 +70,6 @@ struct PRListView: View {
         withAnimation(.easeOut(duration: 0.12)) {
             proxy.scrollTo(id, anchor: .center)
         }
-    }
-
-    private func notifications(for pullRequest: PullRequest) -> [Session.UnreadNotification] {
-        if let notifications = unreadNotifications[pullRequest.url], !notifications.isEmpty {
-            return notifications
-        }
-        guard unreadURLs.contains(pullRequest.url) else { return [] }
-        return [.init(
-            id: "legacy-\(pullRequest.id)",
-            repository: pullRequest.repository,
-            subtitle: "Unread notification",
-            title: pullRequest.title,
-            createdAt: pullRequest.updatedAt
-        )]
     }
 }
 

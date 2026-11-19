@@ -82,8 +82,15 @@ struct DashboardView: View {
                         .background(Color.primary.opacity(0.08), in: Circle())
                         .keyboardShortcut(.cancelAction)
                     }
-                    UnreadNotificationsView(notifications: notifications(for: notificationPanelPR), showsTitle: false)
-                        .padding(-12)
+                    UnreadNotificationsView(
+                        notifications: Session.UnreadNotification.rows(
+                            for: notificationPanelPR,
+                            in: session.unreadNotificationsByURL,
+                            isUnread: true
+                        ),
+                        showsTitle: false
+                    )
+                    .padding(-12)
                 }
                 .padding(16)
                 .frame(width: 360)
@@ -239,19 +246,6 @@ struct DashboardView: View {
             return
         }
         notificationPanelPR = pr
-    }
-
-    private func notifications(for pullRequest: PullRequest) -> [Session.UnreadNotification] {
-        if let notifications = session.unreadNotificationsByURL[pullRequest.url], !notifications.isEmpty {
-            return notifications
-        }
-        return [.init(
-            id: "legacy-\(pullRequest.id)",
-            repository: pullRequest.repository,
-            subtitle: "Unread notification",
-            title: pullRequest.title,
-            createdAt: pullRequest.updatedAt
-        )]
     }
 
     private func showToast(_ message: String) {

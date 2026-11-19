@@ -39,6 +39,16 @@ struct NotificationEventTests {
         #expect(UnreadNotificationsView.iconName(for: event.kind) == "text.bubble.fill")
     }
 
+    @Test func unreadPullRequestWithoutSavedRowsGetsOnePlaceholder() {
+        let saved = Session.UnreadNotification(id: "x", repository: "acme/web", subtitle: "Merged", title: "t", createdAt: .now)
+
+        #expect(Session.UnreadNotification.rows(for: pr, in: [pr.url: [saved]], isUnread: true) == [saved])
+        #expect(Session.UnreadNotification.rows(for: pr, in: [:], isUnread: false).isEmpty)
+        let placeholder = Session.UnreadNotification.rows(for: pr, in: [:], isUnread: true)
+        #expect(placeholder.map(\.subtitle) == ["Unread notification"])
+        #expect(placeholder.map(\.id) == ["legacy-PR_1"])
+    }
+
     @Test func unreadRowsSavedWithoutKindStillDecode() throws {
         let saved = Data(#"[{"id":"merged-PR_1","repository":"acme/web","subtitle":"Merged","title":"Ship it","createdAt":0}]"#.utf8)
 
