@@ -5,11 +5,8 @@ import UserNotifications
 /// Banner sink used by `Session`; `Notifier` is the live implementation.
 @MainActor
 protocol NotificationPosting: AnyObject {
-    func postCheckResult(for pullRequest: PullRequest, passed: Bool)
-    func postActivity(for pullRequest: PullRequest, event: PullRequest.ActivityEvent)
-    func postMerged(for pullRequest: PullRequest)
-    func postMergeQueueExit(for pullRequest: PullRequest)
-    func postReviewRequest(for pullRequest: PullRequest)
+    /// Shows a banner for `event`; the caller has already recorded the unread row.
+    func post(_ event: NotificationEvent, for pullRequest: PullRequest)
     /// Called with the PR URL after the user opens it from a banner.
     var onOpenPullRequest: (@MainActor (URL) -> Void)? { get set }
 }
@@ -51,103 +48,16 @@ public final class Notifier: NSObject, UNUserNotificationCenterDelegate, Notific
         }
     }
 
-    /// Banner for a PR whose checks just finished. Scoped to dashboard PRs by
-    /// the caller, which also records the unread dot.
-    func postCheckResult(for pullRequest: PullRequest, passed: Bool) {
+    func post(_ event: NotificationEvent, for pullRequest: PullRequest) {
         guard available, settings.showNotificationBanners else { return }
         let content = UNMutableNotificationContent()
         content.title = pullRequest.repository
-        content.subtitle = passed ? "Checks passed" : "Checks failed"
+        content.subtitle = event.subtitle
         content.body = pullRequest.title
         content.sound = settings.playNotificationSounds ? .default : nil
         content.userInfo = ["url": pullRequest.url.absoluteString]
         let request = UNNotificationRequest(
-            identifier: "ci-\(pullRequest.id)-\(passed)",
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request)
-    }
-
-    /// Banner for a new comment or review on a dashboard PR. Derived locally
-    /// from the dashboard's activity, so it works regardless of the user's
-    /// GitHub notification routing.
-    func postActivity(for pullRequest: PullRequest, event: PullRequest.ActivityEvent) {
-        guard available, settings.showNotificationBanners else { return }
-        let action: String
-        switch event.kind {
-        case .comment:
-            action = "commented"
-        case .review(let state):
-            switch state {
-            case "APPROVED": action = "approved"
-            case "CHANGES_REQUESTED": action = "requested changes"
-            case "DISMISSED": action = "dismissed a review"
-            default: action = "reviewed"
-            }
-        }
-        let content = UNMutableNotificationContent()
-        content.title = pullRequest.repository
-        content.subtitle = "\(event.author.githubMention) \(action)"
-        content.body = pullRequest.title
-        content.sound = settings.playNotificationSounds ? .default : nil
-        content.userInfo = ["url": pullRequest.url.absoluteString]
-        let request = UNNotificationRequest(
-            identifier: "activity-\(pullRequest.id)-\(event.createdAt.timeIntervalSince1970)",
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request)
-    }
-
-    /// Banner for one of your PRs that just merged. Derived from the merged
-    /// search; the PR has left the open panes by now.
-    func postMerged(for pullRequest: PullRequest) {
-        guard available, settings.showNotificationBanners else { return }
-        let content = UNMutableNotificationContent()
-        content.title = pullRequest.repository
-        content.subtitle = "Merged"
-        content.body = pullRequest.title
-        content.sound = settings.playNotificationSounds ? .default : nil
-        content.userInfo = ["url": pullRequest.url.absoluteString]
-        let request = UNNotificationRequest(
-            identifier: "merged-\(pullRequest.id)",
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request)
-    }
-
-    /// Banner for a PR that dropped out of the merge queue while still open
-    /// (kicked for a conflict, failed required check, base moved, manual remove).
-    func postMergeQueueExit(for pullRequest: PullRequest) {
-        guard available, settings.showNotificationBanners else { return }
-        let content = UNMutableNotificationContent()
-        content.title = pullRequest.repository
-        content.subtitle = "Removed from the merge queue"
-        content.body = pullRequest.title
-        content.sound = settings.playNotificationSounds ? .default : nil
-        content.userInfo = ["url": pullRequest.url.absoluteString]
-        let request = UNNotificationRequest(
-            identifier: "queue-exit-\(pullRequest.id)-\(pullRequest.updatedAt.timeIntervalSince1970)",
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request)
-    }
-
-    /// Banner for a PR you were just asked to review. Derived from the review
-    /// pane entering the dashboard.
-    func postReviewRequest(for pullRequest: PullRequest) {
-        guard available, settings.showNotificationBanners else { return }
-        let content = UNMutableNotificationContent()
-        content.title = pullRequest.repository
-        content.subtitle = "Review requested"
-        content.body = pullRequest.title
-        content.sound = settings.playNotificationSounds ? .default : nil
-        content.userInfo = ["url": pullRequest.url.absoluteString]
-        let request = UNNotificationRequest(
-            identifier: "review-request-\(pullRequest.id)",
+            identifier: event.identifier(for: pullRequest),
             content: content,
             trigger: nil
         )

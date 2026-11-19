@@ -38,6 +38,10 @@ public final class Session {
         var subtitle: String
         var title: String
         var createdAt: Date
+        /// Nil for rows saved before kinds were stored; see `resolvedKind`.
+        var kind: NotificationEvent.Kind?
+
+        var resolvedKind: NotificationEvent.Kind? { kind ?? NotificationEvent.Kind(legacySubtitle: subtitle) }
     }
 
     enum State {
@@ -551,10 +555,7 @@ public final class Session {
             lastCheckState[pr.id] = state
             let finished = state == .success || state == .failure || state == .error
             guard hasSeededChecks, previouslyShown.contains(pr.id), finished, state != previous else { continue }
-            recordUnread(pr, subtitle: state == .success ? "Checks passed" : "Checks failed", id: "ci-\(pr.id)-\(state.rawValue)")
-            if !isHidden(pr) {
-                dependencies.notifier.postCheckResult(for: pr, passed: state == .success)
-            }
+            announce(.checksFinished(state), for: pr)
         }
         hasSeededChecks = true
     }
@@ -569,10 +570,7 @@ public final class Session {
             let newest = pr.activity.last?.createdAt ?? .distantPast
             if let cursor = lastActivityAt[pr.id] {
                 for event in pr.activity where event.createdAt > cursor && event.author != dashboard.viewer {
-                    recordUnread(pr, subtitle: activitySubtitle(for: event), id: "activity-\(pr.id)-\(event.createdAt.timeIntervalSince1970)", createdAt: event.createdAt)
-                    if !isHidden(pr) {
-                        dependencies.notifier.postActivity(for: pr, event: event)
-                    }
+                    announce(.activity(event), for: pr)
                 }
             }
             lastActivityAt[pr.id] = max(lastActivityAt[pr.id] ?? .distantPast, newest)
@@ -585,10 +583,7 @@ public final class Session {
         let ids = dashboard.requestedReviewIDs
         if hasSeededReviewRequests {
             for pr in dashboard.reviewRequests where ids.contains(pr.id) && !knownReviewRequestIDs.contains(pr.id) {
-                recordUnread(pr, subtitle: "Review requested", id: "review-request-\(pr.id)")
-                if !isHidden(pr) {
-                    dependencies.notifier.postReviewRequest(for: pr)
-                }
+                announce(.reviewRequested, for: pr)
             }
         }
         knownReviewRequestIDs = ids
@@ -603,10 +598,7 @@ public final class Session {
         let prs = dashboard.myPRs + dashboard.reviewRequests
         if hasSeededMergeQueue {
             for pr in prs where prsInMergeQueue.contains(pr.id) && !pr.isInMergeQueue && pr.mergeQueueState == nil {
-                recordUnread(pr, subtitle: "Removed from the merge queue", id: "queue-exit-\(pr.id)-\(pr.updatedAt.timeIntervalSince1970)", createdAt: pr.updatedAt)
-                if !isHidden(pr) {
-                    dependencies.notifier.postMergeQueueExit(for: pr)
-                }
+                announce(.leftMergeQueue, for: pr)
             }
         }
         prsInMergeQueue = Set(prs.filter { $0.isInMergeQueue || $0.mergeQueueState != nil }.map(\.id))
@@ -621,10 +613,9 @@ public final class Session {
         if hasSeededMerged {
             for pr in dashboard.recentlyMerged where !knownMergedIDs.contains(pr.id) && !isHidden(pr)
                 && (pr.mergedAt ?? .distantFuture) > cutoff {
-                recordUnread(pr, subtitle: "Merged", id: "merged-\(pr.id)", createdAt: pr.updatedAt)
                 pendingMergedPullRequests.removeAll { $0.id == pr.id }
                 pendingMergedPullRequests.append(pr)
-                dependencies.notifier.postMerged(for: pr)
+                announce(.merged, for: pr)
             }
         }
         knownMergedIDs.formUnion(ids)
@@ -653,36 +644,30 @@ public final class Session {
         hiddenPRURLs.contains(pullRequest.url)
     }
 
-    private func recordUnread(_ pullRequest: PullRequest, subtitle: String, id: String, createdAt: Date = Date()) {
+    /// Records the unread row, and posts the banner unless the PR is hidden.
+    private func announce(_ event: NotificationEvent, for pullRequest: PullRequest) {
+        recordUnread(event, for: pullRequest)
+        if !isHidden(pullRequest) {
+            dependencies.notifier.post(event, for: pullRequest)
+        }
+    }
+
+    private func recordUnread(_ event: NotificationEvent, for pullRequest: PullRequest) {
         unreadURLs.insert(pullRequest.url)
+        let id = event.identifier(for: pullRequest)
         let notification = UnreadNotification(
             id: id,
             repository: pullRequest.repository,
-            subtitle: subtitle,
+            subtitle: event.subtitle,
             title: pullRequest.title,
-            createdAt: createdAt
+            createdAt: event.date(for: pullRequest),
+            kind: event.kind
         )
         let key = pullRequest.url.absoluteString
         var notifications = unreadNotifications[key] ?? []
         notifications.removeAll { $0.id == id }
         notifications.append(notification)
         unreadNotifications[key] = notifications.sorted { $0.createdAt > $1.createdAt }
-    }
-
-    private func activitySubtitle(for event: PullRequest.ActivityEvent) -> String {
-        let action: String
-        switch event.kind {
-        case .comment:
-            action = "commented"
-        case .review(let state):
-            switch state {
-            case "APPROVED": action = "approved"
-            case "CHANGES_REQUESTED": action = "requested changes"
-            case "DISMISSED": action = "dismissed a review"
-            default: action = "reviewed"
-            }
-        }
-        return "\(event.author.githubMention) \(action)"
     }
 
     private func updateDisplay() {

@@ -43,6 +43,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - Opening the window no longer freezes GitPulse while it looks up your token. The lookup runs in the background, `gh auth token` is stopped after 5 seconds, and reopening the window reuses the token already loaded instead of running `gh` again.
 - If the Keychain refuses to save your sign-in, GitPulse now says so instead of silently asking you to sign in again next launch, and if signing out can't delete the saved token, the sign-in screen says how to remove it.
 - Sign-in refuses a device-flow verification link that doesn't point to `https://github.com`, like every other link GitPulse opens.
+- Unread summaries pick their icon from the event type, so a comment by someone like `@merged-bot` no longer shows the merge icon.
 - Overlapping refreshes no longer apply an older response over a newer one, and a refresh finishing after sign-out no longer brings the dashboard back.
 - A pull request's icon no longer turns into a magenta square after it enters the merge queue or merges while GitPulse is open.
 

@@ -22,9 +22,9 @@ enum DemoData {
         let tracing = tracing(now)
         let merged = flakyTest(now)
         return [
-            darkMode.url: [.init(id: "demo-review", repository: darkMode.repository, subtitle: "@river approved", title: darkMode.title, createdAt: now.addingTimeInterval(-25 * 60))],
-            tracing.url: [.init(id: "demo-request", repository: tracing.repository, subtitle: "Review requested", title: tracing.title, createdAt: now.addingTimeInterval(-50 * 60))],
-            merged.url: [.init(id: "demo-merged", repository: merged.repository, subtitle: "Merged", title: merged.title, createdAt: now.addingTimeInterval(-2 * 3600))],
+            darkMode.url: [.init(id: "demo-review", repository: darkMode.repository, subtitle: "@river approved", title: darkMode.title, createdAt: now.addingTimeInterval(-25 * 60), kind: .approved)],
+            tracing.url: [.init(id: "demo-request", repository: tracing.repository, subtitle: "Review requested", title: tracing.title, createdAt: now.addingTimeInterval(-50 * 60), kind: .reviewRequested)],
+            merged.url: [.init(id: "demo-merged", repository: merged.repository, subtitle: "Merged", title: merged.title, createdAt: now.addingTimeInterval(-2 * 3600), kind: .merged)],
         ]
     }
 

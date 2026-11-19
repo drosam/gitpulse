@@ -120,11 +120,16 @@ final class RecordingNotifier: NotificationPosting {
     private(set) var posts: [Post] = []
     var onOpenPullRequest: (@MainActor (URL) -> Void)?
 
-    func postCheckResult(for pullRequest: PullRequest, passed: Bool) { posts.append(.check(pullRequest.id, passed: passed)) }
-    func postActivity(for pullRequest: PullRequest, event: PullRequest.ActivityEvent) { posts.append(.activity(pullRequest.id, author: event.author)) }
-    func postMerged(for pullRequest: PullRequest) { posts.append(.merged(pullRequest.id)) }
-    func postMergeQueueExit(for pullRequest: PullRequest) { posts.append(.queueExit(pullRequest.id)) }
-    func postReviewRequest(for pullRequest: PullRequest) { posts.append(.reviewRequest(pullRequest.id)) }
+    func post(_ event: NotificationEvent, for pullRequest: PullRequest) {
+        let id = pullRequest.id
+        switch event {
+        case .checksFinished(let state): posts.append(.check(id, passed: state == .success))
+        case .activity(let activity): posts.append(.activity(id, author: activity.author))
+        case .merged: posts.append(.merged(id))
+        case .leftMergeQueue: posts.append(.queueExit(id))
+        case .reviewRequested: posts.append(.reviewRequest(id))
+        }
+    }
 
     func reset() { posts = [] }
 }

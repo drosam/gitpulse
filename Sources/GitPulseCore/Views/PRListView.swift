@@ -101,11 +101,11 @@ struct UnreadNotificationsView: View {
 
     private func notificationRow(_ notification: Session.UnreadNotification) -> some View {
         HStack(alignment: .center, spacing: 10) {
-            Image(systemName: iconName(for: notification.subtitle))
+            Image(systemName: Self.iconName(for: notification.resolvedKind))
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(iconColor(for: notification.subtitle))
+                .foregroundStyle(Self.iconColor(for: notification.resolvedKind))
                 .frame(width: 24, height: 24)
-                .background(iconColor(for: notification.subtitle).opacity(0.16), in: Circle())
+                .background(Self.iconColor(for: notification.resolvedKind).opacity(0.16), in: Circle())
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(notification.subtitle)
@@ -122,27 +122,29 @@ struct UnreadNotificationsView: View {
         .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 10))
     }
 
-    private func iconName(for subtitle: String) -> String {
-        let lowercased = subtitle.lowercased()
-        if lowercased.contains("merged") { return "arrow.triangle.merge" }
-        if lowercased.contains("approved") { return "checkmark.seal.fill" }
-        if lowercased.contains("requested changes") { return "xmark.seal.fill" }
-        if lowercased.contains("comment") { return "text.bubble.fill" }
-        if lowercased.contains("checks passed") { return "checkmark.circle.fill" }
-        if lowercased.contains("checks failed") { return "xmark.circle.fill" }
-        if lowercased.contains("review requested") { return "eye.fill" }
-        if lowercased.contains("queue") { return "arrow.uturn.backward.circle.fill" }
-        return "bell.fill"
+    static func iconName(for kind: NotificationEvent.Kind?) -> String {
+        switch kind {
+        case .merged: "arrow.triangle.merge"
+        case .approved: "checkmark.seal.fill"
+        case .changesRequested: "xmark.seal.fill"
+        case .commented: "text.bubble.fill"
+        case .checksPassed: "checkmark.circle.fill"
+        case .checksFailed: "xmark.circle.fill"
+        case .reviewRequested: "eye.fill"
+        case .leftMergeQueue: "arrow.uturn.backward.circle.fill"
+        case .reviewDismissed, .reviewed, nil: "bell.fill"
+        }
     }
 
-    private func iconColor(for subtitle: String) -> Color {
-        let lowercased = subtitle.lowercased()
-        if lowercased.contains("merged") { return .purple }
-        if lowercased.contains("approved") || lowercased.contains("checks passed") { return .green }
-        if lowercased.contains("requested changes") || lowercased.contains("checks failed") { return .red }
-        if lowercased.contains("comment") { return .blue }
-        if lowercased.contains("review requested") { return .orange }
-        return .secondary
+    static func iconColor(for kind: NotificationEvent.Kind?) -> Color {
+        switch kind {
+        case .merged: .purple
+        case .approved, .checksPassed: .green
+        case .changesRequested, .checksFailed: .red
+        case .commented: .blue
+        case .reviewRequested: .orange
+        case .leftMergeQueue, .reviewDismissed, .reviewed, nil: .secondary
+        }
     }
 
     @ViewBuilder
