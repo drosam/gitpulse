@@ -7,6 +7,8 @@ struct PRListView: View {
     var unreadURLs: Set<URL> = []
     var unreadNotifications: [URL: [Session.UnreadNotification]] = [:]
     var hiddenURLs: Set<URL> = []
+    /// GitHub matched more PRs than it returned for this pane.
+    var isTruncated = false
     var isActive: Bool
     @Binding var selectedID: PullRequest.ID?
     var keyFocus: FocusState<DashboardView.KeyFocus?>.Binding
@@ -14,10 +16,11 @@ struct PRListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Label("\(title) (\(pullRequests.count))", systemImage: systemImage)
+            Label("\(title) (\(pullRequests.count)\(isTruncated ? "+" : ""))", systemImage: systemImage)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(isActive ? Color.primary : Color.secondary)
                 .padding(10)
+                .help(isTruncated ? "GitHub found more matches; showing the 50 most recently updated per search." : "")
 
             Divider()
 

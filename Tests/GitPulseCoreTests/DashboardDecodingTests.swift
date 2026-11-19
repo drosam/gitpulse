@@ -88,6 +88,33 @@ struct DashboardDecodingTests {
         #expect(merged.map(\.mergedAt) == [date("2026-01-10T09:00:00Z"), date("2026-01-08T10:00:00Z")])
     }
 
+    /// The dashboard fixture with `issueCount` set on the given searches.
+    private func withIssueCounts(_ counts: [String: Int]) throws -> Data {
+        var envelope = try #require(try JSONSerialization.jsonObject(with: fixture("dashboard")) as? [String: Any])
+        var data = try #require(envelope["data"] as? [String: Any])
+        for (search, count) in counts {
+            var result = try #require(data[search] as? [String: Any])
+            result["issueCount"] = count
+            data[search] = result
+        }
+        envelope["data"] = data
+        return try JSONSerialization.data(withJSONObject: envelope)
+    }
+
+    @Test func searchesWithMoreMatchesThanReturnedMarkTheirPaneTruncated() throws {
+        let complete = try GitHubClient.decodeDashboard(withIssueCounts(["mine": 1, "commented": 1]))
+        #expect(!complete.myPRsTruncated)
+        #expect(!complete.reviewRequestsTruncated)
+
+        let capped = try GitHubClient.decodeDashboard(withIssueCounts(["commented": 250]))
+        #expect(!capped.myPRsTruncated)
+        #expect(capped.reviewRequestsTruncated)
+
+        let cappedMine = try GitHubClient.decodeDashboard(withIssueCounts(["assigned": 75]))
+        #expect(cappedMine.myPRsTruncated)
+        #expect(!cappedMine.reviewRequestsTruncated)
+    }
+
     /// The dashboard fixture with `tracked` replaced and the given GraphQL errors added.
     private func partialResponse(tracked: [Any], errors: [[String: Any]]) throws -> Data {
         var envelope = try #require(try JSONSerialization.jsonObject(with: fixture("dashboard")) as? [String: Any])

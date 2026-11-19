@@ -11,6 +11,9 @@ struct Dashboard: Sendable {
     /// pane — used only to banner a merge once, since merged PRs drop out of the
     /// open searches.
     var recentlyMerged: [PullRequest]
+    /// A search behind this pane matched more PRs than it returned.
+    var myPRsTruncated = false
+    var reviewRequestsTruncated = false
 }
 
 enum GitHubError: LocalizedError, Equatable {
@@ -68,11 +71,12 @@ struct GitHubClient: Sendable {
             repoFilter.isEmpty ? query : "\(query) \(repoFilter)"
         }
         return Variables(
-            mine: scoped("is:pr is:open author:@me archived:false"),
-            assigned: scoped("is:pr is:open assignee:@me archived:false"),
-            reviews: scoped("is:pr is:open review-requested:@me archived:false"),
-            reviewed: scoped("is:pr is:open reviewed-by:@me archived:false"),
-            commented: scoped("is:pr is:open commenter:@me archived:false"),
+            // Each search returns at most 50; sorting keeps the most recently active ones.
+            mine: scoped("is:pr is:open author:@me archived:false sort:updated-desc"),
+            assigned: scoped("is:pr is:open assignee:@me archived:false sort:updated-desc"),
+            reviews: scoped("is:pr is:open review-requested:@me archived:false sort:updated-desc"),
+            reviewed: scoped("is:pr is:open reviewed-by:@me archived:false sort:updated-desc"),
+            commented: scoped("is:pr is:open commenter:@me archived:false sort:updated-desc"),
             mergedAuthored: scoped("is:pr is:merged author:@me archived:false sort:updated-desc"),
             mergedAssigned: scoped("is:pr is:merged assignee:@me archived:false sort:updated-desc"),
             tracked: Array(trackedPullRequestIDs.prefix(100))
@@ -86,18 +90,23 @@ struct GitHubClient: Sendable {
         ) {
           viewer { login }
           mine: search(query: $mine, type: ISSUE, first: 50) {
+            issueCount
             nodes { ...prFields }
           }
           assigned: search(query: $assigned, type: ISSUE, first: 50) {
+            issueCount
             nodes { ...prFields }
           }
           reviews: search(query: $reviews, type: ISSUE, first: 50) {
+            issueCount
             nodes { ...prFields }
           }
           reviewed: search(query: $reviewed, type: ISSUE, first: 50) {
+            issueCount
             nodes { ...prFields }
           }
           commented: search(query: $commented, type: ISSUE, first: 50) {
+            issueCount
             nodes { ...prFields }
           }
           mergedAuthored: search(query: $mergedAuthored, type: ISSUE, first: 20) {
@@ -213,7 +222,9 @@ struct GitHubClient: Sendable {
             myPRs: myPRs,
             reviewRequests: reviewRequests,
             requestedReviewIDs: Set(payload.reviews.nodes.compactMap { $0?.pullRequest?.id }).subtracting(myPRIDs),
-            recentlyMerged: recentlyMerged
+            recentlyMerged: recentlyMerged,
+            myPRsTruncated: payload.mine.isTruncated || payload.assigned.isTruncated,
+            reviewRequestsTruncated: payload.reviews.isTruncated || payload.reviewed.isTruncated || payload.commented.isTruncated
         )
     }
 }
@@ -258,7 +269,11 @@ private struct Viewer: Decodable {
 }
 
 private struct SearchResult: Decodable {
+    /// Total matches; absent for the merged searches, which don't request it.
+    var issueCount: Int?
     var nodes: [PRNode?]
+
+    var isTruncated: Bool { (issueCount ?? 0) > nodes.count }
 }
 
 /// Search nodes can be non-PR types in theory; decode leniently and drop misses.

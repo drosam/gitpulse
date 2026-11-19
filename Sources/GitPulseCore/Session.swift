@@ -681,7 +681,9 @@ public final class Session {
             myPRs: displayPullRequests(mergedRows(in: dashboard)),
             reviewRequests: displayPullRequests(dashboard.reviewRequests),
             requestedReviewIDs: dashboard.requestedReviewIDs,
-            recentlyMerged: dashboard.recentlyMerged
+            recentlyMerged: dashboard.recentlyMerged,
+            myPRsTruncated: dashboard.myPRsTruncated,
+            reviewRequestsTruncated: dashboard.reviewRequestsTruncated
         )
     }
 

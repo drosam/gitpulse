@@ -149,6 +149,7 @@ struct DashboardView: View {
                 unreadURLs: settings.showUnreadDots ? session.unreadPRURLs : [],
                 unreadNotifications: session.unreadNotificationsByURL,
                 hiddenURLs: session.hiddenPRURLs,
+                isTruncated: dashboard.myPRsTruncated,
                 isActive: activePane == .mine,
                 selectedID: Binding(
                     get: { activePane == .mine ? mySelectedID : nil },
@@ -164,6 +165,7 @@ struct DashboardView: View {
                 unreadURLs: settings.showUnreadDots ? session.unreadPRURLs : [],
                 unreadNotifications: session.unreadNotificationsByURL,
                 hiddenURLs: session.hiddenPRURLs,
+                isTruncated: dashboard.reviewRequestsTruncated,
                 isActive: activePane == .review,
                 selectedID: Binding(
                     get: { activePane == .review ? reviewSelectedID : nil },

@@ -61,11 +61,12 @@ This builds a release binary for your Mac, generates the icon, and installs an a
 
 - Two-pane dashboard, refreshed automatically every 2 minutes (`⌘R` to refresh manually); automatic refresh pauses until GitHub's rate limit resets if it runs out
 - Pull request lists default to created newest-to-oldest; Settings can switch to updated newest-to-oldest
+- Each pane reads up to the 50 most recently updated PRs per GitHub search; a `+` after the pane count means GitHub found more
 - Click a row or press Return to open the selected PR in your browser
 - Keyboard navigation: arrow keys move between rows/panes, `V` shows unread notification details for the selected PR, Space clears an unread dot, `⌘C` copies the selected PR URL, `H` hides/restores the selected PR, `⇧⌘H` (**View → Show Hidden Pull Requests**) toggles showing hidden PRs. Shortcuts apply only while the dashboard window has focus.
 - Each row shows draft state, merged/merge-queue status, CI status (✓ / ✗ / running), head branch, labels, comment count, age, author, and review decision
 - **Notifications** — GitPulse detects useful PR activity from the dashboard:
-  - macOS banners for new review requests, new top-level comments, inline review-thread replies, submitted reviews, CI completion, merge-queue exits, and newly merged PRs you authored or were assigned to
+  - macOS banners for new review requests, new top-level comments, inline review-thread replies (in the 10 most recent threads), submitted reviews, CI completion, merge-queue exits, and newly merged PRs you authored or were assigned to
   - Newly merged authored/assigned PRs stay in **My pull requests** with a purple merged icon and unread dot until you open them or press Space to dismiss
   - Optional sound
   - Optional blue unread dots in rows and the menu bar

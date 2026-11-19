@@ -46,7 +46,11 @@ struct GitHubClientTests {
         #expect(!dashboard.viewer.isEmpty)
         #expect(script.request?.url == URL(string: "https://api.github.com/graphql"))
         #expect(script.request?.value(forHTTPHeaderField: "Authorization") == "Bearer gho_test")
-        #expect(script.variables["mine"] as? String == "is:pr is:open author:@me archived:false repo:acme/web")
+        #expect(script.variables["mine"] as? String == "is:pr is:open author:@me archived:false sort:updated-desc repo:acme/web")
+        for search in ["mine", "assigned", "reviews", "reviewed", "commented"] {
+            #expect((script.variables[search] as? String)?.contains("sort:updated-desc") == true)
+        }
+        #expect(script.query.components(separatedBy: "issueCount").count - 1 == 5)
         #expect(script.variables["tracked"] as? [String] == ["PR_tracked"])
         #expect(!script.query.contains("acme/web"))
         #expect(!script.query.contains("PR_tracked"))
