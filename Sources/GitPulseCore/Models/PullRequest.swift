@@ -22,8 +22,8 @@ struct PullRequest: Identifiable, Hashable, Codable, Sendable {
         var color: String
     }
 
-    /// A comment or review on the PR, used to derive notifications locally
-    /// instead of relying on GitHub's (settings-dependent) notification inbox.
+    /// A comment or review on the PR, used to derive notifications locally,
+    /// independent of the user's GitHub notification settings.
     struct ActivityEvent: Hashable, Codable, Sendable {
         enum Kind: Hashable, Codable, Sendable {
             case comment

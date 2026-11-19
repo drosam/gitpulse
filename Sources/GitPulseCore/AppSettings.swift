@@ -62,7 +62,7 @@ public final class AppSettings {
         didSet { defaults.set(pullRequestSort.rawValue, forKey: Self.pullRequestSortKey) }
     }
 
-    /// Newline or comma separated `owner/name` repository names or GitHub repository URLs.
+    /// `owner/name` repository names or GitHub repository URLs, separated by newlines, commas, spaces or tabs.
     var selectedRepositoriesText: String {
         didSet { defaults.set(selectedRepositoriesText, forKey: Self.selectedRepositoriesKey) }
     }

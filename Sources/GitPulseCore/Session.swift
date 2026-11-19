@@ -581,7 +581,6 @@ public final class Session {
 
     /// Posts a banner when GitHub newly requests your review on a PR, not when a
     /// PR enters the pane only because you commented or reviewed.
-    /// Settings-independent replacement for the inbox review notification.
     private func detectNewReviewRequests(in dashboard: Dashboard) {
         let ids = dashboard.requestedReviewIDs
         if hasSeededReviewRequests {

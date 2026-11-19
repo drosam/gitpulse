@@ -123,7 +123,7 @@ GitPulse resolves a GitHub token in this order:
 3. `gh auth token` (if the GitHub CLI is installed and logged in)
 4. OAuth device flow — click **Sign in with GitHub**, enter the code shown
 
-The device flow uses a registered OAuth app (client ID in `Sources/GitPulse/GitHub/DeviceFlow.swift`). No client secret is needed or shipped; tokens are stored only in the Keychain.
+The device flow uses a registered OAuth app (client ID in `Sources/GitPulseCore/GitHub/DeviceFlow.swift`). No client secret is needed or shipped; tokens are stored only in the Keychain.
 
 The token needs the `repo` scope (covers private-repo search) and `read:org` (lets search see org PRs). GitPulse only reads; it never writes to GitHub. Classic personal access tokens with those scopes also work via `GITHUB_TOKEN`.
 
@@ -135,7 +135,7 @@ The token needs the `repo` scope (covers private-repo search) and `read:org` (le
 - Network requests use no disk cache or cookie store, so the token and responses are never written to `~/Library/Caches` or `~/Library/HTTPStorages`.
 - GitPulse sends requests only to `api.github.com` (GraphQL) and `github.com` (device-flow sign-in).
 - No analytics, telemetry, or third-party services.
-- Notification state and settings live in `~/Library/Preferences/dev.davidrosa.gitpulse.plist`.
+- Notification state and settings live in `~/Library/Preferences/dev.davidrosa.gitpulse.plist`, unencrypted. That includes your GitHub login and the titles, repository names and URLs of pull requests with unread or recent activity. The token is never stored there.
 - Links are opened only when they point to `https://github.com`, including the sign-in page GitHub sends during device flow. The one exception is the fixed link to macOS **System Settings → Notifications**.
 
 See [SECURITY.md](SECURITY.md) to report a vulnerability.

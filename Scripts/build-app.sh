@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds GitPulse.app (release, ad-hoc signed). Used by `make install` and the release workflow.
+# Builds GitPulse.app (release, ad-hoc signed). Used by `make app`, `dev`, `demo` and `install`, and the release workflow.
 #
 # Environment:
 #   VERSION       CFBundleShortVersionString (default: "dev (<short sha>)", or "dev")

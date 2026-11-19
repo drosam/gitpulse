@@ -52,8 +52,7 @@ public final class Notifier: NSObject, UNUserNotificationCenterDelegate, Notific
     }
 
     /// Banner for a PR whose checks just finished. Scoped to dashboard PRs by
-    /// the caller; not a GitHub notification thread, so it doesn't touch the
-    /// unread dot/badge.
+    /// the caller, which also records the unread dot.
     func postCheckResult(for pullRequest: PullRequest, passed: Bool) {
         guard available, settings.showNotificationBanners else { return }
         let content = UNMutableNotificationContent()
@@ -102,7 +101,7 @@ public final class Notifier: NSObject, UNUserNotificationCenterDelegate, Notific
     }
 
     /// Banner for one of your PRs that just merged. Derived from the merged
-    /// search, not the inbox; the PR has left the open panes by now.
+    /// search; the PR has left the open panes by now.
     func postMerged(for pullRequest: PullRequest) {
         guard available, settings.showNotificationBanners else { return }
         let content = UNMutableNotificationContent()
@@ -138,7 +137,7 @@ public final class Notifier: NSObject, UNUserNotificationCenterDelegate, Notific
     }
 
     /// Banner for a PR you were just asked to review. Derived from the review
-    /// pane entering the dashboard, not the notification inbox.
+    /// pane entering the dashboard.
     func postReviewRequest(for pullRequest: PullRequest) {
         guard available, settings.showNotificationBanners else { return }
         let content = UNMutableNotificationContent()
