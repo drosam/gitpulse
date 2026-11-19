@@ -19,8 +19,9 @@ app:
 dev: app
 	open "$(BUILT_APP)"
 
+# -n starts a new instance; a running GitPulse would otherwise ignore --demo.
 demo: app
-	open "$(BUILT_APP)" --args --demo
+	open -n "$(BUILT_APP)" --args --demo
 
 check-not-cask:
 	@if [ -n "$(CASKROOM)" ] && [ -d "$(CASKROOM)" ]; then \

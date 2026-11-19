@@ -140,13 +140,13 @@ See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ## Demo mode
 
-Launch with fictional data, without signing in, network access, or notifications:
+Launch with fictional data, without signing in, network access, or notifications. Quit GitPulse first: a running copy ignores `--demo` and keeps showing your real pull requests.
 
 ```sh
-open -a GitPulse --args --demo
+open -n -a GitPulse --args --demo
 ```
 
-Demo mode keeps its preferences separate from your real ones. It is used for the screenshot above.
+The window subtitle shows `@demo-user` in demo mode; if it shows your login, you're looking at real data. Demo mode keeps its preferences separate from your real ones. It is used for the screenshot above.
 
 ## Uninstall
 

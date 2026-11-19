@@ -61,7 +61,7 @@ Never call real GitHub from tests. Inject a `DashboardSource`, `TokenProvider`, 
 
 ### Demo mode and screenshots
 
-`make demo` (or `open .build/app/GitPulse.app --args --demo`) loads `DemoData` (fictional `acme/*` and `globex/*` repositories). It does no network, Keychain, or notification work and uses a separate preferences domain. Use it for README screenshots (`screencapture -w docs/screenshot.png`) so no private repository names leak.
+`make demo` (or `open -n .build/app/GitPulse.app --args --demo`) loads `DemoData` (fictional `acme/*` and `globex/*` repositories). It does no network, Keychain, or notification work and uses a separate preferences domain. Use it for README screenshots (`screencapture -w docs/screenshot.png`) so no private repository names leak. Quit any running GitPulse first, and check that the window subtitle shows `@demo-user` before capturing.
 
 ## Pull requests
 
