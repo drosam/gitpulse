@@ -405,6 +405,7 @@ public final class Session {
         )
         hiddenPullRequests.removeAll { $0.url == pullRequest.url }
         hiddenPullRequests.append(hidden)
+        pendingMergedPullRequests.removeAll { $0.url == pullRequest.url }
         unreadURLs.remove(pullRequest.url)
         unreadNotifications.removeValue(forKey: pullRequest.url.absoluteString)
         saveHiddenPullRequests()
@@ -618,7 +619,8 @@ public final class Session {
                 announce(.merged, for: pr)
             }
         }
-        knownMergedIDs.formUnion(ids)
+        // Only the current window is needed: older merges fail the `mergedAt` cutoff above.
+        knownMergedIDs = ids
         lastMyPullRequestIDs = Set(dashboard.myPRs.map(\.id))
         hasSeededMerged = true
         lastMergeCheck = Date()
@@ -627,6 +629,7 @@ public final class Session {
     /// Drops per-PR tracking state for PRs no longer shown in the app, so the
     /// maps don't grow without bound as PRs are merged/closed.
     private func pruneState(keeping dashboard: Dashboard) {
+        pendingMergedPullRequests.removeAll { !unreadURLs.contains($0.url) }
         let prs = dashboard.myPRs + dashboard.reviewRequests + pendingMergedPullRequests
         let currentIDs = Set(prs.map(\.id))
         let currentURLs = Set(prs.map(\.url))

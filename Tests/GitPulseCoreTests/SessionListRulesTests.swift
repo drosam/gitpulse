@@ -108,6 +108,33 @@ struct SessionListRulesTests {
         #expect(!harness.session.hasUnread)
     }
 
+    private func saved<T: Decodable>(_ type: T.Type, _ base: String, in harness: SessionHarness) -> T? {
+        harness.defaults.data(forKey: "accounts.octocat.\(base)").flatMap { try? JSONDecoder().decode(type, from: $0) }
+    }
+
+    @Test func mergedPullRequestLeavingTheMergedSearchIsForgotten() async {
+        let harness = SessionHarness()
+        let merged = makePR("A", isMerged: true, mergedAt: Date())
+        await harness.load(makeDashboard(merged: [merged]))
+        #expect(saved(Set<String>.self, Session.mergedKey, in: harness) == ["A"])
+
+        await harness.load(makeDashboard(merged: []))
+
+        #expect(saved(Set<String>.self, Session.mergedKey, in: harness) == [])
+    }
+
+    @Test func hidingPendingMergedRowForgetsIt() async {
+        let harness = SessionHarness()
+        let merged = makePR("A", isMerged: true, updatedAt: "2026-01-05T00:00:00Z")
+        await harness.load(makeDashboard(mine: [makePR("A")]))
+        await harness.load(makeDashboard(merged: [merged]))
+        #expect(saved([PullRequest].self, Session.pendingMergedPullRequestsKey, in: harness)?.map(\.id) == ["A"])
+
+        harness.session.hide(merged)
+
+        #expect(saved([PullRequest].self, Session.pendingMergedPullRequestsKey, in: harness)?.isEmpty == true)
+    }
+
     @Test func mergedPullRequestsNeverEnterReviewRequested() async {
         let harness = SessionHarness()
         await harness.load(makeDashboard(mine: [makePR("A")]))
