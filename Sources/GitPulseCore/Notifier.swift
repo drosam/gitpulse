@@ -70,7 +70,7 @@ public final class Notifier: NSObject, UNUserNotificationCenterDelegate, Notific
     ) async -> UNNotificationPresentationOptions {
         await MainActor.run {
             var options: UNNotificationPresentationOptions = []
-            if settings.showNotificationBanners { options.insert(.banner) }
+            if settings.showNotificationBanners { options.formUnion([.banner, .list]) }
             if settings.playNotificationSounds { options.insert(.sound) }
             return options
         }

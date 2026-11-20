@@ -30,6 +30,7 @@ public struct SettingsView: View {
             Section("Notifications") {
                 Toggle("Show notification banners", isOn: $settings.showNotificationBanners)
                 Toggle("Play notification sounds", isOn: $settings.playNotificationSounds)
+                    .disabled(!settings.showNotificationBanners)
                 Toggle("Show Dock badge count", isOn: $settings.showDockBadge)
                 Toggle("Show unread dots in the app and menu bar", isOn: $settings.showUnreadDots)
             }

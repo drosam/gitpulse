@@ -51,6 +51,7 @@ Each release's GitHub notes are taken from its section below, so add an entry be
 - A review with inline comments now posts one notification instead of one per comment plus one for the review, and a comment-only review or thread reply reads "commented".
 - CI results on a new commit are announced even when the checks finished between two refreshes, so a second failure in a row is no longer missed.
 - Two comments or reviews posted in the same second on one pull request now both show as unread instead of one replacing the other.
+- Notifications that arrive while GitPulse is in front now also stay in Notification Center, and the sound setting is disabled while banners are off (it had no effect).
 - Overlapping refreshes no longer apply an older response over a newer one, and a refresh finishing after sign-out no longer brings the dashboard back.
 - A pull request's icon no longer turns into a magenta square after it enters the merge queue or merges while GitPulse is open.
 
